@@ -49,7 +49,7 @@
 
 .. image:: https://img.shields.io/badge/code%20style-black-000000.svg
    :target: https://github.com/psf/black
-   :alt: Code Style: Black
+   :alt: Code Style: +Black
 
 .. image:: https://img.shields.io/badge/Telegram-Channel-blue.svg?logo=telegram
    :target: https://t.me/pythontelegrambotchannel

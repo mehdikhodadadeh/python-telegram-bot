@@ -16,6 +16,8 @@
 
 .. |editreplymarkup| replace:: It is currently only possible to edit messages without :attr:`telegram.Message.reply_markup` or with inline keyboards.
 
+.. |bcid_edit_time| replace:: Note that business messages that were not sent by the bot and do not contain an inline keyboard can only be edited within *48 hours* from the time they were sent.
+
 .. |toapikwargsbase| replace:: These arguments are also considered by :meth:`~telegram.TelegramObject.to_dict` and :meth:`~telegram.TelegramObject.to_json`, i.e. when passing objects to Telegram. Passing them to Telegram is however not guaranteed to work for all kinds of objects, e.g. this will fail for objects that can not directly be JSON serialized.
 
 .. |toapikwargsarg| replace:: Arbitrary keyword arguments. Can be used to store data for which there are no dedicated attributes. |toapikwargsbase|
@@ -58,9 +60,11 @@
 
 .. |removed_thumb_note| replace:: Removed the deprecated argument and attribute ``thumb``.
 
-.. |removed_thumb_url_note| replace:: Removed the deprecated argument and attribute ``thumb_url``.
+.. |removed_thumb_url_note| replace:: Removed the deprecated argument and attribute ``thumb_url`` which made thumbnail_url mandatory.
 
 .. |removed_thumb_wildcard_note| replace:: Removed the deprecated arguments and attributes ``thumb_*``.
+
+.. |thumbnail_url_mandatory| replace:: Removal of the deprecated argument ``thumb_url`` made ``thumbnail_url`` mandatory.
 
 .. |async_context_manager| replace:: Asynchronous context manager which
 
@@ -81,3 +85,11 @@
 .. |non_optional_story_argument| replace:: As of this version, this argument is now required. In accordance with our `stability policy <https://docs.python-telegram-bot.org/en/stable/stability_policy.html>`__, the signature will be kept as optional for now, though they are mandatory and an error will be raised if you don't pass it.
 
 .. |business_id_str| replace:: Unique identifier of the business connection on behalf of which the message will be sent.
+
+.. |business_id_str_edit| replace:: Unique identifier of the business connection on behalf of which the message to be edited was sent
+
+.. |message_effect_id| replace:: Unique identifier of the message effect to be added to the message; for private chats only.
+
+.. |show_cap_above_med| replace:: :obj:`True`, if the caption must be shown above the message media.
+
+.. |tg_stars| replace:: `Telegram Stars <https://t.me/BotNews/90>`__

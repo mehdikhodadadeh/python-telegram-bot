@@ -93,7 +93,7 @@ class CallbackQuery(TelegramObject):
             with the callback button that originated the query.
 
             .. versionchanged:: 20.8
-               Objects maybe be of type :class:`telegram.MaybeInaccessibleMessage` since Bot API
+               Objects may be of type :class:`telegram.MaybeInaccessibleMessage` since Bot API
                7.0.
         data (:obj:`str` | :obj:`object`): Optional. Data associated with the callback button.
             Be aware that the message, which originated the query, can contain no callback buttons
@@ -148,7 +148,9 @@ class CallbackQuery(TelegramObject):
         self._freeze()
 
     @classmethod
-    def de_json(cls, data: Optional[JSONDict], bot: "Bot") -> Optional["CallbackQuery"]:
+    def de_json(
+        cls, data: Optional[JSONDict], bot: Optional["Bot"] = None
+    ) -> Optional["CallbackQuery"]:
         """See :meth:`telegram.TelegramObject.de_json`."""
         data = cls._parse_data(data)
 
@@ -260,6 +262,8 @@ class CallbackQuery(TelegramObject):
                 entities=entities,
                 chat_id=None,
                 message_id=None,
+                # inline messages can not be sent on behalf of a bcid
+                business_connection_id=None,
             )
         return await self._get_message().edit_text(
             text=text,
@@ -281,6 +285,7 @@ class CallbackQuery(TelegramObject):
         reply_markup: Optional["InlineKeyboardMarkup"] = None,
         parse_mode: ODVInput[str] = DEFAULT_NONE,
         caption_entities: Optional[Sequence["MessageEntity"]] = None,
+        show_caption_above_media: Optional[bool] = None,
         *,
         read_timeout: ODVInput[float] = DEFAULT_NONE,
         write_timeout: ODVInput[float] = DEFAULT_NONE,
@@ -326,6 +331,9 @@ class CallbackQuery(TelegramObject):
                 caption_entities=caption_entities,
                 chat_id=None,
                 message_id=None,
+                show_caption_above_media=show_caption_above_media,
+                # inline messages can not be sent on behalf of a bcid
+                business_connection_id=None,
             )
         return await self._get_message().edit_caption(
             caption=caption,
@@ -337,6 +345,7 @@ class CallbackQuery(TelegramObject):
             parse_mode=parse_mode,
             api_kwargs=api_kwargs,
             caption_entities=caption_entities,
+            show_caption_above_media=show_caption_above_media,
         )
 
     async def edit_message_reply_markup(
@@ -385,6 +394,8 @@ class CallbackQuery(TelegramObject):
                 api_kwargs=api_kwargs,
                 chat_id=None,
                 message_id=None,
+                # inline messages can not be sent on behalf of a bcid
+                business_connection_id=None,
             )
         return await self._get_message().edit_reply_markup(
             reply_markup=reply_markup,
@@ -442,6 +453,8 @@ class CallbackQuery(TelegramObject):
                 api_kwargs=api_kwargs,
                 chat_id=None,
                 message_id=None,
+                # inline messages can not be sent on behalf of a bcid
+                business_connection_id=None,
             )
         return await self._get_message().edit_media(
             media=media,
@@ -513,6 +526,8 @@ class CallbackQuery(TelegramObject):
                 live_period=live_period,
                 chat_id=None,
                 message_id=None,
+                # inline messages can not be sent on behalf of a bcid
+                business_connection_id=None,
             )
         return await self._get_message().edit_live_location(
             latitude=latitude,
@@ -576,6 +591,8 @@ class CallbackQuery(TelegramObject):
                 api_kwargs=api_kwargs,
                 chat_id=None,
                 message_id=None,
+                # inline messages can not be sent on behalf of a bcid
+                business_connection_id=None,
             )
         return await self._get_message().stop_live_location(
             reply_markup=reply_markup,
@@ -815,6 +832,7 @@ class CallbackQuery(TelegramObject):
         protect_content: ODVInput[bool] = DEFAULT_NONE,
         message_thread_id: Optional[int] = None,
         reply_parameters: Optional["ReplyParameters"] = None,
+        show_caption_above_media: Optional[bool] = None,
         *,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
         reply_to_message_id: Optional[int] = None,
@@ -861,6 +879,7 @@ class CallbackQuery(TelegramObject):
             protect_content=protect_content,
             message_thread_id=message_thread_id,
             reply_parameters=reply_parameters,
+            show_caption_above_media=show_caption_above_media,
         )
 
     MAX_ANSWER_TEXT_LENGTH: Final[int] = (

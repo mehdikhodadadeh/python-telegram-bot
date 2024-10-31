@@ -31,43 +31,45 @@ from tests.auxil.slots import mro_slots
 @pytest.fixture(scope="module")
 def json_dict():
     return {
-        "id": TestUserBase.id_,
-        "is_bot": TestUserBase.is_bot,
-        "first_name": TestUserBase.first_name,
-        "last_name": TestUserBase.last_name,
-        "username": TestUserBase.username,
-        "language_code": TestUserBase.language_code,
-        "can_join_groups": TestUserBase.can_join_groups,
-        "can_read_all_group_messages": TestUserBase.can_read_all_group_messages,
-        "supports_inline_queries": TestUserBase.supports_inline_queries,
-        "is_premium": TestUserBase.is_premium,
-        "added_to_attachment_menu": TestUserBase.added_to_attachment_menu,
-        "can_connect_to_business": TestUserBase.can_connect_to_business,
+        "id": UserTestBase.id_,
+        "is_bot": UserTestBase.is_bot,
+        "first_name": UserTestBase.first_name,
+        "last_name": UserTestBase.last_name,
+        "username": UserTestBase.username,
+        "language_code": UserTestBase.language_code,
+        "can_join_groups": UserTestBase.can_join_groups,
+        "can_read_all_group_messages": UserTestBase.can_read_all_group_messages,
+        "supports_inline_queries": UserTestBase.supports_inline_queries,
+        "is_premium": UserTestBase.is_premium,
+        "added_to_attachment_menu": UserTestBase.added_to_attachment_menu,
+        "can_connect_to_business": UserTestBase.can_connect_to_business,
+        "has_main_web_app": UserTestBase.has_main_web_app,
     }
 
 
-@pytest.fixture()
+@pytest.fixture
 def user(bot):
     user = User(
-        id=TestUserBase.id_,
-        first_name=TestUserBase.first_name,
-        is_bot=TestUserBase.is_bot,
-        last_name=TestUserBase.last_name,
-        username=TestUserBase.username,
-        language_code=TestUserBase.language_code,
-        can_join_groups=TestUserBase.can_join_groups,
-        can_read_all_group_messages=TestUserBase.can_read_all_group_messages,
-        supports_inline_queries=TestUserBase.supports_inline_queries,
-        is_premium=TestUserBase.is_premium,
-        added_to_attachment_menu=TestUserBase.added_to_attachment_menu,
-        can_connect_to_business=TestUserBase.can_connect_to_business,
+        id=UserTestBase.id_,
+        first_name=UserTestBase.first_name,
+        is_bot=UserTestBase.is_bot,
+        last_name=UserTestBase.last_name,
+        username=UserTestBase.username,
+        language_code=UserTestBase.language_code,
+        can_join_groups=UserTestBase.can_join_groups,
+        can_read_all_group_messages=UserTestBase.can_read_all_group_messages,
+        supports_inline_queries=UserTestBase.supports_inline_queries,
+        is_premium=UserTestBase.is_premium,
+        added_to_attachment_menu=UserTestBase.added_to_attachment_menu,
+        can_connect_to_business=UserTestBase.can_connect_to_business,
+        has_main_web_app=UserTestBase.has_main_web_app,
     )
     user.set_bot(bot)
     user._unfreeze()
     return user
 
 
-class TestUserBase:
+class UserTestBase:
     id_ = 1
     is_bot = True
     first_name = "first\u2022name"
@@ -80,9 +82,10 @@ class TestUserBase:
     is_premium = True
     added_to_attachment_menu = False
     can_connect_to_business = True
+    has_main_web_app = False
 
 
-class TestUserWithoutRequest(TestUserBase):
+class TestUserWithoutRequest(UserTestBase):
     def test_slot_behaviour(self, user):
         for attr in user.__slots__:
             assert getattr(user, attr, "err") != "err", f"got extra slot '{attr}'"
@@ -104,6 +107,7 @@ class TestUserWithoutRequest(TestUserBase):
         assert user.is_premium == self.is_premium
         assert user.added_to_attachment_menu == self.added_to_attachment_menu
         assert user.can_connect_to_business == self.can_connect_to_business
+        assert user.has_main_web_app == self.has_main_web_app
 
     def test_to_dict(self, user):
         user_dict = user.to_dict()
@@ -121,6 +125,7 @@ class TestUserWithoutRequest(TestUserBase):
         assert user_dict["is_premium"] == user.is_premium
         assert user_dict["added_to_attachment_menu"] == user.added_to_attachment_menu
         assert user_dict["can_connect_to_business"] == user.can_connect_to_business
+        assert user_dict["has_main_web_app"] == user.has_main_web_app
 
     def test_equality(self):
         a = User(self.id_, self.first_name, self.is_bot, self.last_name)
@@ -439,8 +444,8 @@ class TestUserWithoutRequest(TestUserBase):
             return from_chat_id and message_id and user_id
 
         assert check_shortcut_signature(User.send_copy, Bot.copy_message, ["chat_id"], [])
-        assert await check_shortcut_call(user.copy_message, user.get_bot(), "copy_message")
-        assert await check_defaults_handling(user.copy_message, user.get_bot())
+        assert await check_shortcut_call(user.send_copy, user.get_bot(), "copy_message")
+        assert await check_defaults_handling(user.send_copy, user.get_bot())
 
         monkeypatch.setattr(user.get_bot(), "copy_message", make_assertion)
         assert await user.send_copy(from_chat_id="from_chat_id", message_id="message_id")
@@ -700,3 +705,18 @@ class TestUserWithoutRequest(TestUserBase):
 
         monkeypatch.setattr(user.get_bot(), "forward_messages", make_assertion)
         assert await user.forward_messages_to(chat_id="test_forwards", message_ids=(42, 43))
+
+    async def test_instance_method_refund_star_payment(self, monkeypatch, user):
+        async def make_assertion(*_, **kwargs):
+            return kwargs["user_id"] == user.id and kwargs["telegram_payment_charge_id"] == 42
+
+        assert check_shortcut_signature(
+            user.refund_star_payment, Bot.refund_star_payment, ["user_id"], []
+        )
+        assert await check_shortcut_call(
+            user.refund_star_payment, user.get_bot(), "refund_star_payment"
+        )
+        assert await check_defaults_handling(user.refund_star_payment, user.get_bot())
+
+        monkeypatch.setattr(user.get_bot(), "refund_star_payment", make_assertion)
+        assert await user.refund_star_payment(telegram_payment_charge_id=42)

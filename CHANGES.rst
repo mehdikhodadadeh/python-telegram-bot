@@ -4,6 +4,144 @@
 Changelog
 =========
 
+Version 21.5
+============
+
+*Released 2024-09-01*
+
+This is the technical changelog for version 21.5. More elaborate release notes can be found in the news channel `@pythontelegrambotchannel <https://t.me/pythontelegrambotchannel>`_.
+
+Major Changes
+-------------
+
+- Full Support for Bot API 7.9 (:pr:`4429`)
+- Full Support for Bot API 7.8 (:pr:`4408`)
+
+New Features
+------------
+
+- Add ``MessageEntity.shift_entities`` and ``MessageEntity.concatenate`` (:pr:`4376` closes :issue:`4372`)
+- Add Parameter ``game_pattern`` to ``CallbackQueryHandler`` (:pr:`4353` by `jainamoswal <https://github.com/jainamoswal>`_ closes :issue:`4269`)
+- Add Parameter ``read_file_handle`` to ``InputFile`` (:pr:`4388` closes :issue:`4339`)
+
+Documentation Improvements
+--------------------------
+
+- Bugfix for "Available In" Admonitions (:pr:`4413`)
+- Documentation Improvements (:pr:`4400` closes :issue:`4446`, :pr:`4448` by `Palaptin <https://github.com/Palaptin>`_)
+- Document Return Types of ``RequestData`` Members (:pr:`4396`)
+- Add Introductory Paragraphs to Telegram Types Subsections (:pr:`4389` by `mohdyusuf2312 <https://github.com/mohdyusuf2312>`_ closes :issue:`4380`)
+- Start Adapting to RTD Addons (:pr:`4386`)
+
+Minor and Internal Changes
+---------------------------
+
+- Remove Surplus Logging from ``Updater`` Network Loop (:pr:`4432` by `MartinHjelmare <https://github.com/MartinHjelmare>`_)
+- Add Internal Constants for Encodings (:pr:`4378` by `elpekenin <https://github.com/elpekenin>`_)
+- Improve PyPI Automation (:pr:`4375` closes :issue:`4373`)
+- Update Test Suite to New Test Channel Setup (:pr:`4435`)
+- Improve Fixture Usage in ``test_message.py`` (:pr:`4431` by `Palaptin <https://github.com/Palaptin>`_)
+- Update Python 3.13 Test Suite to RC1 (:pr:`4415`)
+- Bump ``ruff`` and Add New Rules (:pr:`4416`)
+
+Dependency Updates
+------------------
+
+- Update ``cachetools`` requirement from <5.5.0,>=5.3.3 to >=5.3.3,<5.6.0 (:pr:`4437`)
+- Bump ``sphinx`` from 7.4.7 to 8.0.2 and ``furo`` from 2024.7.18 to 2024.8.6 (:pr:`4412`)
+- Bump ``test-summary/action`` from 2.3 to 2.4 (:pr:`4410`)
+- Bump ``pytest`` from 8.2.2 to 8.3.2 (:pr:`4403`)
+- Bump ``dependabot/fetch-metadata`` from 2.1.0 to 2.2.0 (:pr:`4411`)
+- Update ``cachetools`` requirement from ~=5.3.3 to >=5.3.3,<5.5.0 (:pr:`4390`)
+- Bump ``sphinx`` from 7.3.7 to 7.4.7 (:pr:`4395`)
+- Bump ``furo`` from 2024.5.6 to 2024.7.18 (:pr:`4392`)
+
+Version 21.4
+============
+
+*Released 2024-07-12*
+
+This is the technical changelog for version 21.4. More elaborate release notes can be found in the news channel `@pythontelegrambotchannel <https://t.me/pythontelegrambotchannel>`_.
+
+Major Changes
+-------------
+
+- Full Support for Bot API 7.5 (:pr:`4328`, :pr:`4316`, :pr:`4315`, :pr:`4312` closes :issue:`4310`, :pr:`4311`)
+- Full Support for Bot API 7.6 (:pr:`4333` closes :issue:`4331`, :pr:`4344`, :pr:`4341`, :pr:`4334`, :pr:`4335`, :pr:`4351`, :pr:`4342`, :pr:`4348`)
+- Full Support for Bot API 7.7 (:pr:`4356` closes :issue:`4355`)
+- Drop ``python-telegram-bot-raw`` And Switch to ``pyproject.toml`` Based Packaging (:pr:`4288` closes :issue:`4129` and :issue:`4296`)
+- Deprecate Inclusion of ``successful_payment`` in ``Message.effective_attachment`` (:pr:`4365` closes :issue:`4350`)
+
+New Features
+------------
+
+- Add Support for Python 3.13 Beta (:pr:`4253`)
+- Add ``filters.PAID_MEDIA`` (:pr:`4357`)
+- Log Received Data on Deserialization Errors (:pr:`4304`)
+- Add ``MessageEntity.adjust_message_entities_to_utf_16`` Utility Function (:pr:`4323` by `Antares0982 <https://github.com/Antares0982>`_ closes :issue:`4319`)
+- Make Argument ``bot`` of ``TelegramObject.de_json`` Optional (:pr:`4320`)
+
+Documentation Improvements
+--------------------------
+
+- Documentation Improvements (:pr:`4303` closes :issue:`4301`)
+- Restructure Readme (:pr:`4362`)
+- Fix Link-Check Workflow (:pr:`4332`)
+
+Internal Changes
+----------------
+
+- Automate PyPI Releases (:pr:`4364` closes :issue:`4318`)
+- Add ``mise-en-place`` to ``.gitignore`` (:pr:`4300`)
+- Use a Composite Action for Testing Type Completeness (:pr:`4367`)
+- Stabilize Some Concurrency Usages in Test Suite (:pr:`4360`)
+- Add a Test Case for ``MenuButton`` (:pr:`4363`)
+- Extend ``SuccessfulPayment`` Test (:pr:`4349`)
+- Small Fixes for ``test_stars.py`` (:pr:`4347`)
+- Use Python 3.13 Beta 3 in Test Suite (:pr:`4336`)
+
+Dependency Updates
+------------------
+
+- Bump ``ruff`` and Add New Rules (:pr:`4329`)
+- Bump ``pre-commit`` Hooks to Latest Versions (:pr:`4337`)
+- Add Lower Bound for ``flaky`` Dependency (:pr:`4322` by `Palaptin <https://github.com/Palaptin>`_)
+- Bump ``pytest`` from 8.2.1 to 8.2.2 (:pr:`4294`)
+
+Version 21.3
+============
+*Released 2024-06-07*
+
+This is the technical changelog for version 21.3. More elaborate release notes can be found in the news channel `@pythontelegrambotchannel <https://t.me/pythontelegrambotchannel>`_.
+
+Major Changes
+-------------
+
+- Full Support for Bot API 7.4 (:pr:`4286`, :pr:`4276` closes :issue:`4275`, :pr:`4285`, :pr:`4283`, :pr:`4280`, :pr:`4278`, :pr:`4279`)
+- Deprecate ``python-telegram-bot-raw`` (:pr:`4270`)
+- Remove Functionality Deprecated in Bot API 7.3 (:pr:`4266` closes :issue:`4244`)
+
+New Features
+------------
+
+- Add Parameter ``chat_id`` to ``ChatMemberHandler`` (:pr:`4290` by `uniquetrij <https://github.com/uniquetrij>`_ closes :issue:`4287`)
+
+Documentation Improvements
+--------------------------
+
+- Documentation Improvements (:pr:`4264` closes :issue:`4240`)
+
+Internal Changes
+----------------
+
+- Add ``setuptools`` to ``requirements-dev.txt`` (:pr:`4282`)
+- Update Settings for pre-commit.ci (:pr:`4265`)
+
+Dependency Updates
+------------------
+
+- Bump ``pytest`` from 8.2.0 to 8.2.1 (:pr:`4272`)
+
 Version 21.2
 ============
 

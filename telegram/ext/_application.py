@@ -251,39 +251,44 @@ class Application(Generic[BT, CCT, UD, CD, BD, JQ], AsyncContextManager["Applica
     """
 
     __slots__ = (
-        "__create_task_tasks",
-        "__update_fetcher_task",
-        "__update_persistence_event",
-        "__update_persistence_lock",
-        "__update_persistence_task",
+        (  # noqa: RUF005
+            "__create_task_tasks",
+            "__update_fetcher_task",
+            "__update_persistence_event",
+            "__update_persistence_lock",
+            "__update_persistence_task",
+            "__stop_running_marker",
+            "_chat_data",
+            "_chat_ids_to_be_deleted_in_persistence",
+            "_chat_ids_to_be_updated_in_persistence",
+            "_conversation_handler_conversations",
+            "_initialized",
+            "_job_queue",
+            "_running",
+            "_update_processor",
+            "_user_data",
+            "_user_ids_to_be_deleted_in_persistence",
+            "_user_ids_to_be_updated_in_persistence",
+            "bot",
+            "bot_data",
+            "chat_data",
+            "context_types",
+            "error_handlers",
+            "handlers",
+            "persistence",
+            "post_init",
+            "post_shutdown",
+            "post_stop",
+            "update_queue",
+            "updater",
+            "user_data",
+        )
         # Allowing '__weakref__' creation here since we need it for the JobQueue
-        # Uncomment if necessary - currently the __weakref__ slot is already created
-        # in the AsyncContextManager base class
-        # "__weakref__",
-        "_chat_data",
-        "_chat_ids_to_be_deleted_in_persistence",
-        "_chat_ids_to_be_updated_in_persistence",
-        "_conversation_handler_conversations",
-        "_initialized",
-        "_job_queue",
-        "_running",
-        "_update_processor",
-        "_user_data",
-        "_user_ids_to_be_deleted_in_persistence",
-        "_user_ids_to_be_updated_in_persistence",
-        "bot",
-        "bot_data",
-        "chat_data",
-        "context_types",
-        "error_handlers",
-        "handlers",
-        "persistence",
-        "post_init",
-        "post_shutdown",
-        "post_stop",
-        "update_queue",
-        "updater",
-        "user_data",
+        # Currently the __weakref__ slot is already created
+        # in the AsyncContextManager base class for pythons < 3.13
+        + ("__weakref__",)
+        if sys.version_info >= (3, 13)
+        else ()
     )
 
     def __init__(
@@ -379,10 +384,10 @@ class Application(Generic[BT, CCT, UD, CD, BD, JQ], AsyncContextManager["Applica
         """
         try:
             await self.initialize()
-            return self
-        except Exception as exc:
+        except Exception:
             await self.shutdown()
-            raise exc
+            raise
+        return self
 
     async def __aexit__(
         self,
@@ -641,9 +646,9 @@ class Application(Generic[BT, CCT, UD, CD, BD, JQ], AsyncContextManager["Applica
             )
             _LOGGER.info("Application started")
 
-        except Exception as exc:
+        except Exception:
             self._running = False
-            raise exc
+            raise
 
     async def stop(self) -> None:
         """Stops the process after processing any pending updates or tasks created by
@@ -780,6 +785,11 @@ class Application(Generic[BT, CCT, UD, CD, BD, JQ], AsyncContextManager["Applica
         - :meth:`post_stop`
         - :meth:`shutdown`
         - :meth:`post_shutdown`
+
+        A small wrapper is passed to :paramref:`telegram.ext.Updater.start_polling.error_callback`
+        which forwards errors occurring during polling to
+        :meth:`registered error handlers <add_error_handler>`. The update parameter of the callback
+        will be set to :obj:`None`.
 
         .. include:: inclusions/application_run_tip.rst
 
@@ -1217,7 +1227,7 @@ class Application(Generic[BT, CCT, UD, CD, BD, JQ], AsyncContextManager["Applica
                 await self.process_error(update=update, error=exception, coroutine=coroutine)
 
             # Raise exception so that it can be set on the task and retrieved by task.exception()
-            raise exception
+            raise
         finally:
             self._mark_for_persistence_update(update=update)
 
@@ -1357,11 +1367,11 @@ class Application(Generic[BT, CCT, UD, CD, BD, JQ], AsyncContextManager["Applica
 
         The priority/order of handlers is determined as follows:
 
-          * Priority of the group (lower group number == higher priority)
-          * The first handler in a group which can handle an update (see
-            :attr:`telegram.ext.BaseHandler.check_update`) will be used. Other handlers from the
-            group will not be used. The order in which handlers were added to the group defines the
-            priority.
+        * Priority of the group (lower group number == higher priority)
+        * The first handler in a group which can handle an update (see
+          :attr:`telegram.ext.BaseHandler.check_update`) will be used. Other handlers from the
+          group will not be used. The order in which handlers were added to the group defines the
+          priority.
 
         Warning:
             Adding persistent :class:`telegram.ext.ConversationHandler` after the application has
@@ -1435,14 +1445,16 @@ class Application(Generic[BT, CCT, UD, CD, BD, JQ], AsyncContextManager["Applica
                 1: [CallbackQueryHandler(...), CommandHandler(...)]
             }
 
+        Raises:
+            :exc:`TypeError`: If the combination of arguments is invalid.
         """
         if isinstance(handlers, dict) and not isinstance(group, DefaultValue):
-            raise ValueError("The `group` argument can only be used with a sequence of handlers.")
+            raise TypeError("The `group` argument can only be used with a sequence of handlers.")
 
         if isinstance(handlers, dict):
             for handler_group, grp_handlers in handlers.items():
                 if not isinstance(grp_handlers, (list, tuple)):
-                    raise ValueError(f"Handlers for group {handler_group} must be a list or tuple")
+                    raise TypeError(f"Handlers for group {handler_group} must be a list or tuple")
 
                 for handler in grp_handlers:
                     self.add_handler(handler, handler_group)
@@ -1452,7 +1464,7 @@ class Application(Generic[BT, CCT, UD, CD, BD, JQ], AsyncContextManager["Applica
                 self.add_handler(handler, DefaultValue.get_value(group))
 
         else:
-            raise ValueError(
+            raise TypeError(
                 "The `handlers` argument must be a sequence of handlers or a "
                 "dictionary where the keys are groups and values are sequences of handlers."
             )
@@ -1634,9 +1646,10 @@ class Application(Generic[BT, CCT, UD, CD, BD, JQ], AsyncContextManager["Applica
                     self.__update_persistence_event.wait(),
                     timeout=self.persistence.update_interval,
                 )
-                return
             except asyncio.TimeoutError:
                 pass
+            else:
+                return
 
             # putting this *after* the wait_for so we don't immediately update on startup as
             # that would make little sense

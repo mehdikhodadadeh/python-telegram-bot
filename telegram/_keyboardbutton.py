@@ -32,7 +32,8 @@ if TYPE_CHECKING:
 
 class KeyboardButton(TelegramObject):
     """
-    This object represents one button of the reply keyboard. For simple text buttons, :obj:`str`
+    This object represents one button of the reply keyboard. At most one of the optional fields
+    must be used to specify type of the button. For simple text buttons, :obj:`str`
     can be used instead of this object to specify text of the button.
 
     Objects of this class are comparable in terms of equality. Two objects of this class are
@@ -167,7 +168,9 @@ class KeyboardButton(TelegramObject):
         self._freeze()
 
     @classmethod
-    def de_json(cls, data: Optional[JSONDict], bot: "Bot") -> Optional["KeyboardButton"]:
+    def de_json(
+        cls, data: Optional[JSONDict], bot: Optional["Bot"] = None
+    ) -> Optional["KeyboardButton"]:
         """See :meth:`telegram.TelegramObject.de_json`."""
         data = cls._parse_data(data)
 

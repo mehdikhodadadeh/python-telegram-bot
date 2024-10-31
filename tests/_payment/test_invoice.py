@@ -31,15 +31,15 @@ from tests.auxil.slots import mro_slots
 @pytest.fixture(scope="module")
 def invoice():
     return Invoice(
-        TestInvoiceBase.title,
-        TestInvoiceBase.description,
-        TestInvoiceBase.start_parameter,
-        TestInvoiceBase.currency,
-        TestInvoiceBase.total_amount,
+        InvoiceTestBase.title,
+        InvoiceTestBase.description,
+        InvoiceTestBase.start_parameter,
+        InvoiceTestBase.currency,
+        InvoiceTestBase.total_amount,
     )
 
 
-class TestInvoiceBase:
+class InvoiceTestBase:
     payload = "payload"
     prices = [LabeledPrice("Fish", 100), LabeledPrice("Fish Tax", 1000)]
     provider_data = """{"test":"test"}"""
@@ -52,7 +52,7 @@ class TestInvoiceBase:
     suggested_tip_amounts = [13, 42]
 
 
-class TestInvoiceWithoutRequest(TestInvoiceBase):
+class TestInvoiceWithoutRequest(InvoiceTestBase):
     def test_slot_behaviour(self, invoice):
         for attr in invoice.__slots__:
             assert getattr(invoice, attr, "err") != "err", f"got extra slot '{attr}'"
@@ -219,7 +219,7 @@ class TestInvoiceWithoutRequest(TestInvoiceBase):
         assert hash(a) != hash(d)
 
 
-class TestInvoiceWithRequest(TestInvoiceBase):
+class TestInvoiceWithRequest(InvoiceTestBase):
     async def test_send_required_args_only(self, bot, chat_id, provider_token):
         message = await bot.send_invoice(
             chat_id=chat_id,
@@ -292,13 +292,14 @@ class TestInvoiceWithRequest(TestInvoiceBase):
                 self.title,
                 self.description,
                 self.payload,
-                provider_token,
-                self.currency,
-                self.prices,
+                "",  # using tg stars
+                "XTR",
+                [self.prices[0]],
                 allow_sending_without_reply=custom,
                 reply_to_message_id=reply_to_message.message_id,
             )
             assert message.reply_to_message is None
+            assert message.invoice.currency == "XTR"
         elif default_bot.defaults.allow_sending_without_reply:
             message = await default_bot.send_invoice(
                 chat_id,

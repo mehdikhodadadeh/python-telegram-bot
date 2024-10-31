@@ -14,7 +14,7 @@ jobs:
     runs-on: ${{matrix.os}}
     strategy:
       matrix:
-        python-version: [3.9]
+        python-version: ['3.10']
         os: [ubuntu-latest]
       fail-fast: False
     steps:
@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -W ignore -m pip install --upgrade pip
-          python -W ignore -m pip install -r requirements-all.txt
+          python -W ignore -m pip install -r requirements-dev-all.txt
       - name: Test autogeneration of admonitions
         run: pytest -v --tb=short tests/docs/admonition_inserter.py
       - name: Build docs

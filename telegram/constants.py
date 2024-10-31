@@ -54,6 +54,7 @@ __all__ = [
     "ChatLimit",
     "ChatMemberStatus",
     "ChatPhotoSize",
+    "ChatSubscriptionLimit",
     "ChatType",
     "ContactLimit",
     "CustomEmojiStickerLimit",
@@ -71,6 +72,7 @@ __all__ = [
     "InlineQueryResultType",
     "InlineQueryResultsButtonLimit",
     "InputMediaType",
+    "InputPaidMediaType",
     "InvoiceLimit",
     "KeyboardButtonRequestUsersLimit",
     "LocationLimit",
@@ -82,6 +84,7 @@ __all__ = [
     "MessageLimit",
     "MessageOriginType",
     "MessageType",
+    "PaidMediaType",
     "ParseMode",
     "PollLimit",
     "PollType",
@@ -90,10 +93,13 @@ __all__ = [
     "ReactionEmoji",
     "ReactionType",
     "ReplyLimit",
+    "RevenueWithdrawalStateType",
+    "StarTransactionsLimit",
     "StickerFormat",
     "StickerLimit",
     "StickerSetLimit",
     "StickerType",
+    "TransactionPartnerType",
     "UpdateType",
     "UserProfilePhotosLimit",
     "WebhookLimit",
@@ -146,7 +152,7 @@ class _AccentColor(NamedTuple):
 #: :data:`telegram.__bot_api_version_info__`.
 #:
 #: .. versionadded:: 20.0
-BOT_API_VERSION_INFO: Final[_BotAPIVersion] = _BotAPIVersion(major=7, minor=3)
+BOT_API_VERSION_INFO: Final[_BotAPIVersion] = _BotAPIVersion(major=7, minor=9)
 #: :obj:`str`: Telegram Bot API
 #: version supported by this version of `python-telegram-bot`. Also available as
 #: :data:`telegram.__bot_api_version__`.
@@ -168,7 +174,8 @@ ZERO_DATE: Final[datetime.datetime] = datetime.datetime(1970, 1, 1, tzinfo=UTC)
 
 
 class AccentColor(Enum):
-    """This enum contains the available accent colors for :class:`telegram.Chat.accent_color_id`.
+    """This enum contains the available accent colors for
+    :class:`telegram.ChatFullInfo.accent_color_id`.
     The members of this enum are named tuples with the following attributes:
 
     - ``identifier`` (:obj:`int`): The identifier of the accent color.
@@ -1255,6 +1262,21 @@ class InputMediaType(StringEnum):
     """:obj:`str`: Type of :class:`telegram.InputMediaVideo`."""
 
 
+class InputPaidMediaType(StringEnum):
+    """This enum contains the available types of :class:`telegram.InputPaidMedia`. The enum
+    members of this enumeration are instances of :class:`str` and can be treated as such.
+
+    .. versionadded:: 21.4
+    """
+
+    __slots__ = ()
+
+    PHOTO = "photo"
+    """:obj:`str`: Type of :class:`telegram.InputMediaPhoto`."""
+    VIDEO = "video"
+    """:obj:`str`: Type of :class:`telegram.InputMediaVideo`."""
+
+
 class InlineQueryLimit(IntEnum):
     """This enum contains limitations for :class:`telegram.InlineQuery`/
     :meth:`telegram.Bot.answer_inline_query`. The enum members of this enumeration are instances
@@ -1598,6 +1620,11 @@ class MessageAttachmentType(StringEnum):
     """:obj:`str`: Messages with :attr:`telegram.Message.invoice`."""
     LOCATION = "location"
     """:obj:`str`: Messages with :attr:`telegram.Message.location`."""
+    PAID_MEDIA = "paid_media"
+    """:obj:`str`: Messages with :attr:`telegram.Message.paid_media`.
+
+    .. versionadded:: 21.4
+    """
     PASSPORT_DATA = "passport_data"
     """:obj:`str`: Messages with :attr:`telegram.Message.passport_data`."""
     PHOTO = "photo"
@@ -1629,48 +1656,53 @@ class MessageEntityType(StringEnum):
 
     __slots__ = ()
 
-    MENTION = "mention"
-    """:obj:`str`: Message entities representing a mention."""
-    HASHTAG = "hashtag"
-    """:obj:`str`: Message entities representing a hashtag."""
-    CASHTAG = "cashtag"
-    """:obj:`str`: Message entities representing a cashtag."""
-    PHONE_NUMBER = "phone_number"
-    """:obj:`str`: Message entities representing a phone number."""
-    BOT_COMMAND = "bot_command"
-    """:obj:`str`: Message entities representing a bot command."""
-    URL = "url"
-    """:obj:`str`: Message entities representing a url."""
-    EMAIL = "email"
-    """:obj:`str`: Message entities representing a email."""
+    BLOCKQUOTE = "blockquote"
+    """:obj:`str`: Message entities representing a block quotation.
+
+    .. versionadded:: 20.8
+    """
     BOLD = "bold"
     """:obj:`str`: Message entities representing bold text."""
-    ITALIC = "italic"
-    """:obj:`str`: Message entities representing italic text."""
+    BOT_COMMAND = "bot_command"
+    """:obj:`str`: Message entities representing a bot command."""
+    CASHTAG = "cashtag"
+    """:obj:`str`: Message entities representing a cashtag."""
     CODE = "code"
     """:obj:`str`: Message entities representing monowidth string."""
+    CUSTOM_EMOJI = "custom_emoji"
+    """:obj:`str`: Message entities representing inline custom emoji stickers.
+
+    .. versionadded:: 20.0
+    """
+    EMAIL = "email"
+    """:obj:`str`: Message entities representing a email."""
+    EXPANDABLE_BLOCKQUOTE = "expandable_blockquote"
+    """:obj:`str`: Message entities representing collapsed-by-default block quotation.
+
+    .. versionadded:: 21.3
+    """
+    HASHTAG = "hashtag"
+    """:obj:`str`: Message entities representing a hashtag."""
+    ITALIC = "italic"
+    """:obj:`str`: Message entities representing italic text."""
+    MENTION = "mention"
+    """:obj:`str`: Message entities representing a mention."""
+    PHONE_NUMBER = "phone_number"
+    """:obj:`str`: Message entities representing a phone number."""
     PRE = "pre"
     """:obj:`str`: Message entities representing monowidth block."""
+    SPOILER = "spoiler"
+    """:obj:`str`: Message entities representing spoiler text."""
+    STRIKETHROUGH = "strikethrough"
+    """:obj:`str`: Message entities representing strikethrough text."""
     TEXT_LINK = "text_link"
     """:obj:`str`: Message entities representing clickable text URLs."""
     TEXT_MENTION = "text_mention"
     """:obj:`str`: Message entities representing text mention for users without usernames."""
     UNDERLINE = "underline"
     """:obj:`str`: Message entities representing underline text."""
-    STRIKETHROUGH = "strikethrough"
-    """:obj:`str`: Message entities representing strikethrough text."""
-    SPOILER = "spoiler"
-    """:obj:`str`: Message entities representing spoiler text."""
-    CUSTOM_EMOJI = "custom_emoji"
-    """:obj:`str`: Message entities representing inline custom emoji stickers.
-
-    .. versionadded:: 20.0
-    """
-    BLOCKQUOTE = "blockquote"
-    """:obj:`str`: Message entities representing a block quotation.
-
-    .. versionadded:: 20.8
-    """
+    URL = "url"
+    """:obj:`str`: Message entities representing a url."""
 
 
 class MessageLimit(IntEnum):
@@ -1800,6 +1832,10 @@ class MessageType(StringEnum):
     """:obj:`str`: Messages with :attr:`telegram.Message.dice`."""
     DOCUMENT = "document"
     """:obj:`str`: Messages with :attr:`telegram.Message.document`."""
+    EFFECT_ID = "effect_id"
+    """:obj:`str`: Messages with :attr:`telegram.Message.effect_id`.
+
+    .. versionadded:: 21.3"""
     FORUM_TOPIC_CREATED = "forum_topic_created"
     """:obj:`str`: Messages with :attr:`telegram.Message.forum_topic_created`.
 
@@ -1870,6 +1906,11 @@ class MessageType(StringEnum):
     """:obj:`str`: Messages with :attr:`telegram.Message.new_chat_title`."""
     NEW_CHAT_PHOTO = "new_chat_photo"
     """:obj:`str`: Messages with :attr:`telegram.Message.new_chat_photo`."""
+    PAID_MEDIA = "paid_media"
+    """:obj:`str`: Messages with :attr:`telegram.Message.paid_media`.
+
+    .. versionadded:: 21.4
+    """
     PASSPORT_DATA = "passport_data"
     """:obj:`str`: Messages with :attr:`telegram.Message.passport_data`."""
     PHOTO = "photo"
@@ -1880,6 +1921,11 @@ class MessageType(StringEnum):
     """:obj:`str`: Messages with :attr:`telegram.Message.poll`."""
     PROXIMITY_ALERT_TRIGGERED = "proximity_alert_triggered"
     """:obj:`str`: Messages with :attr:`telegram.Message.proximity_alert_triggered`."""
+    REFUNDED_PAYMENT = "refunded_payment"
+    """:obj:`str`: Messages with :attr:`telegram.Message.refunded_payment`.
+
+    .. versionadded:: 21.4
+    """
     REPLY_TO_STORY = "reply_to_story"
     """:obj:`str`: Messages with :attr:`telegram.Message.reply_to_story`.
 
@@ -1938,6 +1984,24 @@ class MessageType(StringEnum):
     """
 
 
+class PaidMediaType(StringEnum):
+    """
+    This enum contains the available types of :class:`telegram.PaidMedia`. The enum
+    members of this enumeration are instances of :class:`str` and can be treated as such.
+
+    .. versionadded:: 21.4
+    """
+
+    __slots__ = ()
+
+    PREVIEW = "preview"
+    """:obj:`str`: The type of :class:`telegram.PaidMediaPreview`."""
+    VIDEO = "video"
+    """:obj:`str`: The type of :class:`telegram.PaidMediaVideo`."""
+    PHOTO = "photo"
+    """:obj:`str`: The type of :class:`telegram.PaidMediaPhoto`."""
+
+
 class PollingLimit(IntEnum):
     """This enum contains limitations for :paramref:`telegram.Bot.get_updates.limit`.
     The enum members of this enumeration are instances of :class:`int` and can be treated as such.
@@ -1959,7 +2023,7 @@ class PollingLimit(IntEnum):
 
 class ProfileAccentColor(Enum):
     """This enum contains the available accent colors for
-    :class:`telegram.Chat.profile_accent_color_id`.
+    :class:`telegram.ChatFullInfo.profile_accent_color_id`.
     The members of this enum are named tuples with the following attributes:
 
     - ``identifier`` (:obj:`int`): The identifier of the accent color.
@@ -2293,6 +2357,42 @@ class ReplyLimit(IntEnum):
     """
 
 
+class RevenueWithdrawalStateType(StringEnum):
+    """This enum contains the available types of :class:`telegram.RevenueWithdrawalState`.
+    The enum members of this enumeration are instances of :class:`str` and can be treated as such.
+
+    .. versionadded:: 21.4
+    """
+
+    __slots__ = ()
+
+    PENDING = "pending"
+    """:obj:`str`: A withdrawal in progress."""
+    SUCCEEDED = "succeeded"
+    """:obj:`str`: A withdrawal succeeded."""
+    FAILED = "failed"
+    """:obj:`str`: A withdrawal failed and the transaction was refunded."""
+
+
+class StarTransactionsLimit(IntEnum):
+    """This enum contains limitations for :class:`telegram.Bot.get_star_transactions`.
+    The enum members of this enumeration are instances of :class:`int` and can be treated as such.
+
+    .. versionadded:: 21.4
+    """
+
+    __slots__ = ()
+
+    MIN_LIMIT = 1
+    """:obj:`int`: Minimum value allowed for the
+    :paramref:`~telegram.Bot.get_star_transactions.limit` parameter of
+    :meth:`telegram.Bot.get_star_transactions`."""
+    MAX_LIMIT = 100
+    """:obj:`int`: Maximum value allowed for the
+    :paramref:`~telegram.Bot.get_star_transactions.limit` parameter of
+    :meth:`telegram.Bot.get_star_transactions`."""
+
+
 class StickerFormat(StringEnum):
     """This enum contains the available formats of :class:`telegram.Sticker` in the set. The enum
     members of this enumeration are instances of :class:`str` and can be treated as such.
@@ -2424,6 +2524,25 @@ class StickerType(StringEnum):
     """:obj:`str`: Mask sticker."""
     CUSTOM_EMOJI = "custom_emoji"
     """:obj:`str`: Custom emoji sticker."""
+
+
+class TransactionPartnerType(StringEnum):
+    """This enum contains the available types of :class:`telegram.TransactionPartner`. The enum
+    members of this enumeration are instances of :class:`str` and can be treated as such.
+
+    .. versionadded:: 21.4
+    """
+
+    __slots__ = ()
+
+    FRAGMENT = "fragment"
+    """:obj:`str`: Withdrawal transaction with Fragment."""
+    USER = "user"
+    """:obj:`str`: Transaction with a user."""
+    OTHER = "other"
+    """:obj:`str`: Transaction with unknown source or recipient."""
+    TELEGRAM_ADS = "telegram_ads"
+    """:obj:`str`: Transaction with Telegram Ads."""
 
 
 class ParseMode(StringEnum):
@@ -2785,6 +2904,11 @@ class ReactionType(StringEnum):
     """:obj:`str`: A :class:`telegram.ReactionType` with a normal emoji."""
     CUSTOM_EMOJI = "custom_emoji"
     """:obj:`str`: A :class:`telegram.ReactionType` with a custom emoji."""
+    PAID = "paid"
+    """:obj:`str`: A :class:`telegram.ReactionType` with a paid reaction.
+
+    .. versionadded:: 21.5
+    """
 
 
 class ReactionEmoji(StringEnum):
@@ -2978,3 +3102,22 @@ class BackgroundFillType(StringEnum):
     """:obj:`str`: A :class:`telegram.BackgroundFill` with gradient fill."""
     FREEFORM_GRADIENT = "freeform_gradient"
     """:obj:`str`: A :class:`telegram.BackgroundFill` with freeform_gradient fill."""
+
+
+class ChatSubscriptionLimit(IntEnum):
+    """This enum contains limitations for
+    :paramref:`telegram.Bot.create_chat_subscription_invite_link.subscription_period` and
+    :paramref:`telegram.Bot.create_chat_subscription_invite_link.subscription_price`.
+    The enum members of this enumeration are instances of :class:`int` and can be treated as such.
+
+    .. versionadded:: 21.5
+    """
+
+    __slots__ = ()
+
+    SUBSCRIPTION_PERIOD = 2592000
+    """:obj:`int`: The number of seconds the subscription will be active."""
+    MIN_PRICE = 1
+    """:obj:`int`: Amount of stars a user pays, minimum amount the subscription can be set to."""
+    MAX_PRICE = 2500
+    """:obj:`int`: Amount of stars a user pays, maximum amount the subscription can be set to."""

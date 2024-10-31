@@ -73,6 +73,8 @@ from telegram import (
     ReplyParameters,
     SentWebAppMessage,
     ShippingOption,
+    StarTransaction,
+    StarTransactions,
     Update,
     User,
     WebAppInfo,
@@ -97,7 +99,7 @@ from tests.auxil.bot_method_checks import check_defaults_handling
 from tests.auxil.ci_bots import FALLBACKS
 from tests.auxil.envvars import GITHUB_ACTION, TEST_WITH_OPT_DEPS
 from tests.auxil.files import data_file
-from tests.auxil.networking import expect_bad_request
+from tests.auxil.networking import NonchalantHttpxRequest, expect_bad_request
 from tests.auxil.pytest_classes import PytestBot, PytestExtBot, make_bot
 from tests.auxil.slots import mro_slots
 
@@ -105,7 +107,7 @@ from ._files.test_photo import photo_file
 from .auxil.build_messages import make_message
 
 
-@pytest.fixture()
+@pytest.fixture
 async def message(bot, chat_id):  # mostly used in tests for edit_message
     out = await bot.send_message(
         chat_id, "Text", disable_web_page_preview=True, disable_notification=True
@@ -253,7 +255,7 @@ class TestBotWithoutRequest:
         async def stop(*args, **kwargs):
             self.test_flag.append("stop")
 
-        temp_bot = PytestBot(token=bot.token)
+        temp_bot = PytestBot(token=bot.token, request=NonchalantHttpxRequest())
         orig_stop = temp_bot.request.shutdown
 
         try:
@@ -533,6 +535,29 @@ class TestBotWithoutRequest:
             123, "text", api_kwargs={"unknown_kwarg_1": 7, "unknown_kwarg_2": 5}
         )
 
+    async def test_get_updates_deserialization_error(self, bot, monkeypatch, caplog):
+        async def faulty_do_request(*args, **kwargs):
+            return (
+                HTTPStatus.OK,
+                b'{"ok": true, "result": [{"update_id": "1", "message": "unknown_format"}]}',
+            )
+
+        monkeypatch.setattr(HTTPXRequest, "do_request", faulty_do_request)
+
+        bot = PytestExtBot(get_updates_request=HTTPXRequest(), token=bot.token)
+
+        with caplog.at_level(logging.CRITICAL), pytest.raises(AttributeError):
+            await bot.get_updates()
+
+        assert len(caplog.records) == 1
+        assert caplog.records[0].name == "telegram.ext.ExtBot"
+        assert caplog.records[0].levelno == logging.CRITICAL
+        assert caplog.records[0].getMessage() == (
+            "Error while parsing updates! Received data was "
+            "[{'update_id': '1', 'message': 'unknown_format'}]"
+        )
+        assert caplog.records[0].exc_info[0] is AttributeError
+
     async def test_answer_web_app_query(self, bot, raw_bot, monkeypatch):
         params = False
 
@@ -559,11 +584,11 @@ class TestBotWithoutRequest:
         copied_result = copy.copy(result)
 
         ext_bot = bot
-        for bot in (ext_bot, raw_bot):
+        for bot_type in (ext_bot, raw_bot):
             # We need to test 1) below both the bot and raw_bot and setting this up with
             # pytest.parametrize appears to be difficult ...
-            monkeypatch.setattr(bot.request, "post", make_assertion)
-            web_app_msg = await bot.answer_web_app_query("12345", result)
+            monkeypatch.setattr(bot_type.request, "post", make_assertion)
+            web_app_msg = await bot_type.answer_web_app_query("12345", result)
             assert params, "something went wrong with passing arguments to the request"
             assert isinstance(web_app_msg, SentWebAppMessage)
             assert web_app_msg.inline_message_id == "321"
@@ -761,11 +786,11 @@ class TestBotWithoutRequest:
 
         copied_results = copy.copy(results)
         ext_bot = bot
-        for bot in (ext_bot, raw_bot):
+        for bot_type in (ext_bot, raw_bot):
             # We need to test 1) below both the bot and raw_bot and setting this up with
             # pytest.parametrize appears to be difficult ...
-            monkeypatch.setattr(bot.request, "post", make_assertion)
-            assert await bot.answer_inline_query(
+            monkeypatch.setattr(bot_type.request, "post", make_assertion)
+            assert await bot_type.answer_inline_query(
                 1234,
                 results=results,
                 cache_time=300,
@@ -790,7 +815,7 @@ class TestBotWithoutRequest:
                         copied_results[idx].input_message_content, "disable_web_page_preview", None
                     )
 
-            monkeypatch.delattr(bot.request, "post")
+            monkeypatch.delattr(bot_type.request, "post")
 
     async def test_answer_inline_query_no_default_parse_mode(self, monkeypatch, bot):
         async def make_assertion(url, request_data: RequestData, *args, **kwargs):
@@ -2171,14 +2196,29 @@ class TestBotWithoutRequest:
 
     async def test_business_connection_id_argument(self, bot, monkeypatch):
         """We can't connect to a business acc, so we just test that the correct data is passed.
-        We also can't test every single method easily, so we just test one. Our linting will catch
+        We also can't test every single method easily, so we just test a few. Our linting will
+        catch any unused args with the others."""
+
+        async def make_assertion(url, request_data: RequestData, *args, **kwargs):
+            assert request_data.parameters.get("business_connection_id") == 42
+            return {}
+
+        monkeypatch.setattr(bot.request, "post", make_assertion)
+
+        await bot.send_message(2, "text", business_connection_id=42)
+        await bot.stop_poll(chat_id=1, message_id=2, business_connection_id=42)
+        await bot.pin_chat_message(chat_id=1, message_id=2, business_connection_id=42)
+        await bot.unpin_chat_message(chat_id=1, business_connection_id=42)
+
+    async def test_message_effect_id_argument(self, bot, monkeypatch):
+        """We can't test every single method easily, so we just test one. Our linting will catch
         any unused args with the others."""
 
         async def make_assertion(url, request_data: RequestData, *args, **kwargs):
-            return request_data.parameters.get("business_connection_id") == 42
+            return request_data.parameters.get("message_effect_id") == 42
 
         monkeypatch.setattr(bot.request, "post", make_assertion)
-        assert await bot.send_message(2, "text", business_connection_id=42)
+        assert await bot.send_message(2, "text", message_effect_id=42)
 
     async def test_get_business_connection(self, bot, monkeypatch):
         bci = "42"
@@ -2199,6 +2239,46 @@ class TestBotWithoutRequest:
         monkeypatch.setattr(bot.request, "do_request", do_request)
         obj = await bot.get_business_connection(business_connection_id=bci)
         assert isinstance(obj, BusinessConnection)
+
+    async def test_refund_star_payment(self, bot, monkeypatch):
+        # can't make actual request so we just test that the correct data is passed
+        async def make_assertion(url, request_data: RequestData, *args, **kwargs):
+            return (
+                request_data.parameters.get("user_id") == 42
+                and request_data.parameters.get("telegram_payment_charge_id") == "37"
+            )
+
+        monkeypatch.setattr(bot.request, "post", make_assertion)
+        assert await bot.refund_star_payment(42, "37")
+
+    async def test_get_star_transactions(self, bot, monkeypatch):
+        # we just want to test the offset parameter
+        st = StarTransactions([StarTransaction("1", 1, dtm.datetime.now())]).to_json()
+
+        async def do_request(url, request_data: RequestData, *args, **kwargs):
+            offset = request_data.parameters.get("offset") == 3
+            if offset:
+                return 200, f'{{"ok": true, "result": {st}}}'.encode()
+            return 400, b'{"ok": false, "result": []}'
+
+        monkeypatch.setattr(bot.request, "do_request", do_request)
+        obj = await bot.get_star_transactions(offset=3)
+        assert isinstance(obj, StarTransactions)
+
+    async def test_create_chat_subscription_invite_link(
+        self,
+        monkeypatch,
+        bot,
+    ):
+        # Since the chat invite link object does not say if the sub args are passed we can
+        # only check here
+        async def make_assertion(url, request_data: RequestData, *args, **kwargs):
+            assert request_data.parameters.get("subscription_period") == 2592000
+            assert request_data.parameters.get("subscription_price") == 6
+
+        monkeypatch.setattr(bot.request, "post", make_assertion)
+
+        await bot.create_chat_subscription_invite_link(1234, 2592000, 6)
 
 
 class TestBotWithRequest:
@@ -2305,11 +2385,15 @@ class TestBotWithRequest:
     # test modules. No need to duplicate here.
 
     async def test_delete_messages(self, bot, chat_id):
-        msg1 = await bot.send_message(chat_id, text="will be deleted")
-        msg2 = await bot.send_message(chat_id, text="will be deleted")
-        await asyncio.sleep(2)
+        msg1, msg2 = await asyncio.gather(
+            bot.send_message(chat_id, text="will be deleted"),
+            bot.send_message(chat_id, text="will be deleted"),
+        )
 
-        assert await bot.delete_messages(chat_id=chat_id, message_ids=(msg1.id, msg2.id)) is True
+        assert (
+            await bot.delete_messages(chat_id=chat_id, message_ids=sorted((msg1.id, msg2.id)))
+            is True
+        )
 
     async def test_send_venue(self, bot, chat_id):
         longitude = -46.788279
@@ -2804,9 +2888,11 @@ class TestBotWithRequest:
             caption="new_caption",
             chat_id=media_message.chat_id,
             message_id=media_message.message_id,
+            show_caption_above_media=False,
         )
 
         assert message.caption == "new_caption"
+        assert not message.show_caption_above_media
 
     async def test_edit_message_caption_entities(self, bot, media_message):
         test_string = "Italic Bold Code"
@@ -3022,7 +3108,7 @@ class TestBotWithRequest:
     async def test_get_chat_member(self, bot, channel_id, chat_id):
         chat_member = await bot.get_chat_member(channel_id, chat_id)
 
-        assert chat_member.status == "administrator"
+        assert chat_member.status == "creator"
         assert chat_member.user.first_name == "PTB"
         assert chat_member.user.last_name == "Test user"
 
@@ -3196,7 +3282,7 @@ class TestBotWithRequest:
         with pytest.raises(BadRequest, match="Not enough rights"):
             assert await bot.promote_chat_member(
                 channel_id,
-                95205500,
+                1325859552,
                 is_anonymous=True,
                 can_change_info=True,
                 can_post_messages=True,
@@ -3219,7 +3305,7 @@ class TestBotWithRequest:
             data = args[1]
             return (
                 data.get("chat_id") == channel_id
-                and data.get("user_id") == 95205500
+                and data.get("user_id") == 1325859552
                 and data.get("is_anonymous") == 1
                 and data.get("can_change_info") == 2
                 and data.get("can_post_messages") == 3
@@ -3240,7 +3326,7 @@ class TestBotWithRequest:
         monkeypatch.setattr(bot, "_post", make_assertion)
         assert await bot.promote_chat_member(
             channel_id,
-            95205500,
+            1325859552,
             is_anonymous=1,
             can_change_info=2,
             can_post_messages=3,
@@ -3789,6 +3875,7 @@ class TestBotWithRequest:
             parse_mode=ParseMode.HTML,
             reply_to_message_id=media_message.message_id,
             reply_markup=keyboard,
+            show_caption_above_media=False,
         )
         # we send a temp message which replies to the returned message id in order to get a
         # message object
@@ -3849,7 +3936,7 @@ class TestBotWithRequest:
         msg1, msg2 = await tasks
 
         copy_messages = await bot.copy_messages(
-            chat_id, from_chat_id=chat_id, message_ids=(msg1.message_id, msg2.message_id)
+            chat_id, from_chat_id=chat_id, message_ids=sorted((msg1.message_id, msg2.message_id))
         )
         assert isinstance(copy_messages, tuple)
 
@@ -4184,3 +4271,28 @@ class TestBotWithRequest:
     @pytest.mark.parametrize("return_type", [Message, None])
     async def test_do_api_request_bool_return_type(self, bot, chat_id, return_type):
         assert await bot.do_api_request("delete_my_commands", return_type=return_type) is True
+
+    async def test_get_star_transactions(self, bot):
+        transactions = await bot.get_star_transactions(limit=1)
+        assert isinstance(transactions, StarTransactions)
+        assert len(transactions.transactions) == 0
+
+    async def test_create_edit_chat_subscription_link(
+        self, bot, subscription_channel_id, channel_id
+    ):
+        sub_link = await bot.create_chat_subscription_invite_link(
+            subscription_channel_id,
+            name="sub_name",
+            subscription_period=2592000,
+            subscription_price=13,
+        )
+        assert sub_link.name == "sub_name"
+        assert sub_link.subscription_period == 2592000
+        assert sub_link.subscription_price == 13
+
+        edited_link = await bot.edit_chat_subscription_invite_link(
+            chat_id=subscription_channel_id, invite_link=sub_link, name="sub_name_2"
+        )
+        assert edited_link.name == "sub_name_2"
+        assert sub_link.subscription_period == 2592000
+        assert sub_link.subscription_price == 13

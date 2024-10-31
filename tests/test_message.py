@@ -46,11 +46,14 @@ from telegram import (
     MessageAutoDeleteTimerChanged,
     MessageEntity,
     MessageOriginChat,
+    PaidMediaInfo,
+    PaidMediaPreview,
     PassportData,
     PhotoSize,
     Poll,
     PollOption,
     ProximityAlertTriggered,
+    RefundedPayment,
     ReplyParameters,
     SharedUser,
     Sticker,
@@ -87,13 +90,13 @@ from tests.auxil.pytest_classes import PytestExtBot, PytestMessage
 from tests.auxil.slots import mro_slots
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def message(bot):
     message = PytestMessage(
-        message_id=TestMessageBase.id_,
-        date=TestMessageBase.date,
-        chat=copy(TestMessageBase.chat),
-        from_user=copy(TestMessageBase.from_user),
+        message_id=MessageTestBase.id_,
+        date=MessageTestBase.date,
+        chat=copy(MessageTestBase.chat),
+        from_user=copy(MessageTestBase.from_user),
         business_connection_id="123456789",
     )
     message.set_bot(bot)
@@ -273,6 +276,10 @@ def message(bot):
         {"sender_business_bot": User(1, "BusinessBot", True)},
         {"business_connection_id": "123456789"},
         {"chat_background_set": ChatBackground(type=BackgroundTypeChatTheme("ice"))},
+        {"effect_id": "123456789"},
+        {"show_caption_above_media": True},
+        {"paid_media": PaidMediaInfo(5, [PaidMediaPreview(10, 10, 10)])},
+        {"refunded_payment": RefundedPayment("EUR", 243, "payload", "charge_id", "provider_id")},
     ],
     ids=[
         "reply",
@@ -342,21 +349,25 @@ def message(bot):
         "business_connection_id",
         "is_from_offline",
         "chat_background_set",
+        "effect_id",
+        "show_caption_above_media",
+        "paid_media",
+        "refunded_payment",
     ],
 )
 def message_params(bot, request):
     message = Message(
-        message_id=TestMessageBase.id_,
-        from_user=TestMessageBase.from_user,
-        date=TestMessageBase.date,
-        chat=TestMessageBase.chat,
+        message_id=MessageTestBase.id_,
+        from_user=MessageTestBase.from_user,
+        date=MessageTestBase.date,
+        chat=MessageTestBase.chat,
         **request.param,
     )
     message.set_bot(bot)
     return message
 
 
-class TestMessageBase:
+class MessageTestBase:
     id_ = 1
     from_user = User(2, "testuser", False)
     date = datetime.utcnow()
@@ -399,11 +410,12 @@ class TestMessageBase:
         {"length": 2, "offset": 150, "type": "custom_emoji", "custom_emoji_id": "1"},
         {"length": 34, "offset": 154, "type": "blockquote"},
         {"length": 6, "offset": 181, "type": "bold"},
+        {"length": 33, "offset": 190, "type": "expandable_blockquote"},
     ]
     test_text_v2 = (
         r"Test for <bold, ita_lic, \`code, links, text-mention and `\pre. "
         "http://google.com and bold nested in strk>trgh nested in italic. Python pre. Spoiled. "
-        "👍.\nMultiline\nblock quote\nwith nested."
+        "👍.\nMultiline\nblock quote\nwith nested.\n\nMultiline\nexpandable\nblock quote."
     )
     test_message = Message(
         message_id=1,
@@ -427,7 +439,7 @@ class TestMessageBase:
     )
 
 
-class TestMessageWithoutRequest(TestMessageBase):
+class TestMessageWithoutRequest(MessageTestBase):
     @staticmethod
     async def check_quote_parsing(
         message: Message, method, bot_method_name: str, args, monkeypatch
@@ -547,10 +559,10 @@ class TestMessageWithoutRequest(TestMessageBase):
 
     def test_slot_behaviour(self):
         message = Message(
-            message_id=TestMessageBase.id_,
-            date=TestMessageBase.date,
-            chat=copy(TestMessageBase.chat),
-            from_user=copy(TestMessageBase.from_user),
+            message_id=MessageTestBase.id_,
+            date=MessageTestBase.date,
+            chat=copy(MessageTestBase.chat),
+            from_user=copy(MessageTestBase.from_user),
         )
         for attr in message.__slots__:
             assert getattr(message, attr, "err") != "err", f"got extra slot '{attr}'"
@@ -728,7 +740,8 @@ class TestMessageWithoutRequest(TestMessageBase):
             '<pre><code class="python">Python pre</code></pre>. '
             '<span class="tg-spoiler">Spoiled</span>. '
             '<tg-emoji emoji-id="1">👍</tg-emoji>.\n'
-            "<blockquote>Multiline\nblock quote\nwith <b>nested</b>.</blockquote>"
+            "<blockquote>Multiline\nblock quote\nwith <b>nested</b>.</blockquote>\n\n"
+            "<blockquote expandable>Multiline\nexpandable\nblock quote.</blockquote>"
         )
         text_html = self.test_message_v2.text_html
         assert text_html == test_html_string
@@ -749,7 +762,8 @@ class TestMessageWithoutRequest(TestMessageBase):
             '<pre><code class="python">Python pre</code></pre>. '
             '<span class="tg-spoiler">Spoiled</span>. '
             '<tg-emoji emoji-id="1">👍</tg-emoji>.\n'
-            "<blockquote>Multiline\nblock quote\nwith <b>nested</b>.</blockquote>"
+            "<blockquote>Multiline\nblock quote\nwith <b>nested</b>.</blockquote>\n\n"
+            "<blockquote expandable>Multiline\nexpandable\nblock quote.</blockquote>"
         )
         text_html = self.test_message_v2.text_html_urled
         assert text_html == test_html_string
@@ -774,6 +788,9 @@ class TestMessageWithoutRequest(TestMessageBase):
             ">Multiline\n"
             ">block quote\n"
             r">with *nested*\."
+            "\n\n>Multiline\n"
+            ">expandable\n"
+            r">block quote\.||"
         )
         text_markdown = self.test_message_v2.text_markdown_v2
         assert text_markdown == test_md_string
@@ -830,6 +847,9 @@ class TestMessageWithoutRequest(TestMessageBase):
             ">Multiline\n"
             ">block quote\n"
             r">with *nested*\."
+            "\n\n>Multiline\n"
+            ">expandable\n"
+            r">block quote\.||"
         )
         text_markdown = self.test_message_v2.text_markdown_v2_urled
         assert text_markdown == test_md_string
@@ -946,7 +966,8 @@ class TestMessageWithoutRequest(TestMessageBase):
             '<pre><code class="python">Python pre</code></pre>. '
             '<span class="tg-spoiler">Spoiled</span>. '
             '<tg-emoji emoji-id="1">👍</tg-emoji>.\n'
-            "<blockquote>Multiline\nblock quote\nwith <b>nested</b>.</blockquote>"
+            "<blockquote>Multiline\nblock quote\nwith <b>nested</b>.</blockquote>\n\n"
+            "<blockquote expandable>Multiline\nexpandable\nblock quote.</blockquote>"
         )
         caption_html = self.test_message_v2.caption_html
         assert caption_html == test_html_string
@@ -967,7 +988,8 @@ class TestMessageWithoutRequest(TestMessageBase):
             '<pre><code class="python">Python pre</code></pre>. '
             '<span class="tg-spoiler">Spoiled</span>. '
             '<tg-emoji emoji-id="1">👍</tg-emoji>.\n'
-            "<blockquote>Multiline\nblock quote\nwith <b>nested</b>.</blockquote>"
+            "<blockquote>Multiline\nblock quote\nwith <b>nested</b>.</blockquote>\n\n"
+            "<blockquote expandable>Multiline\nexpandable\nblock quote.</blockquote>"
         )
         caption_html = self.test_message_v2.caption_html_urled
         assert caption_html == test_html_string
@@ -992,6 +1014,9 @@ class TestMessageWithoutRequest(TestMessageBase):
             ">Multiline\n"
             ">block quote\n"
             r">with *nested*\."
+            "\n\n>Multiline\n"
+            ">expandable\n"
+            r">block quote\.||"
         )
         caption_markdown = self.test_message_v2.caption_markdown_v2
         assert caption_markdown == test_md_string
@@ -1023,6 +1048,9 @@ class TestMessageWithoutRequest(TestMessageBase):
             ">Multiline\n"
             ">block quote\n"
             r">with *nested*\."
+            "\n\n>Multiline\n"
+            ">expandable\n"
+            r">block quote\.||"
         )
         caption_markdown = self.test_message_v2.caption_markdown_v2_urled
         assert caption_markdown == test_md_string
@@ -1165,16 +1193,20 @@ class TestMessageWithoutRequest(TestMessageBase):
         # The leading - for group ids/ -100 for supergroup ids isn't supposed to be in the link
         assert message.link == f"https://t.me/c/{3}/{message.message_id}"
 
-    def test_link_with_topics(self, message):
+    @pytest.mark.parametrize("type_", argvalues=[Chat.SUPERGROUP, Chat.CHANNEL])
+    def test_link_with_topics(self, message, type_):
         message.chat.username = None
         message.chat.id = -1003
+        message.chat.type = type_
         message.is_topic_message = True
         message.message_thread_id = 123
         assert message.link == f"https://t.me/c/3/{message.message_id}?thread=123"
 
-    def test_link_with_reply(self, message):
+    @pytest.mark.parametrize("type_", argvalues=[Chat.SUPERGROUP, Chat.CHANNEL])
+    def test_link_with_reply(self, message, type_):
         message.chat.username = None
         message.chat.id = -1003
+        message.chat.type = type_
         message.reply_to_message = Message(7, self.from_user, self.date, self.chat, text="Reply")
         message.message_thread_id = 123
         assert message.link == f"https://t.me/c/3/{message.message_id}?thread=123"
@@ -1200,6 +1232,7 @@ class TestMessageWithoutRequest(TestMessageBase):
             "game",
             "invoice",
             "location",
+            "paid_media",
             "passport_data",
             "photo",
             "poll",
@@ -1484,6 +1517,9 @@ class TestMessageWithoutRequest(TestMessageBase):
             ">Multiline\n"
             ">block quote\n"
             r">with *nested*\."
+            "\n\n>Multiline\n"
+            ">expandable\n"
+            r">block quote\.||"
         )
 
         async def make_assertion(*_, **kwargs):
@@ -1534,7 +1570,8 @@ class TestMessageWithoutRequest(TestMessageBase):
             '<pre><code class="python">Python pre</code></pre>. '
             '<span class="tg-spoiler">Spoiled</span>. '
             '<tg-emoji emoji-id="1">👍</tg-emoji>.\n'
-            "<blockquote>Multiline\nblock quote\nwith <b>nested</b>.</blockquote>"
+            "<blockquote>Multiline\nblock quote\nwith <b>nested</b>.</blockquote>\n\n"
+            "<blockquote expandable>Multiline\nexpandable\nblock quote.</blockquote>"
         )
 
         async def make_assertion(*_, **kwargs):
@@ -2322,7 +2359,7 @@ class TestMessageWithoutRequest(TestMessageBase):
         assert check_shortcut_signature(
             Message.edit_text,
             Bot.edit_message_text,
-            ["chat_id", "message_id", "inline_message_id"],
+            ["chat_id", "message_id", "inline_message_id", "business_connection_id"],
             [],
         )
         assert await check_shortcut_call(
@@ -2330,7 +2367,7 @@ class TestMessageWithoutRequest(TestMessageBase):
             message.get_bot(),
             "edit_message_text",
             skip_params=["inline_message_id"],
-            shortcut_kwargs=["message_id", "chat_id"],
+            shortcut_kwargs=["message_id", "chat_id", "business_connection_id"],
         )
         assert await check_defaults_handling(message.edit_text, message.get_bot())
 
@@ -2347,7 +2384,7 @@ class TestMessageWithoutRequest(TestMessageBase):
         assert check_shortcut_signature(
             Message.edit_caption,
             Bot.edit_message_caption,
-            ["chat_id", "message_id", "inline_message_id"],
+            ["chat_id", "message_id", "inline_message_id", "business_connection_id"],
             [],
         )
         assert await check_shortcut_call(
@@ -2355,7 +2392,7 @@ class TestMessageWithoutRequest(TestMessageBase):
             message.get_bot(),
             "edit_message_caption",
             skip_params=["inline_message_id"],
-            shortcut_kwargs=["message_id", "chat_id"],
+            shortcut_kwargs=["message_id", "chat_id", "business_connection_id"],
         )
         assert await check_defaults_handling(message.edit_caption, message.get_bot())
 
@@ -2372,7 +2409,7 @@ class TestMessageWithoutRequest(TestMessageBase):
         assert check_shortcut_signature(
             Message.edit_media,
             Bot.edit_message_media,
-            ["chat_id", "message_id", "inline_message_id"],
+            ["chat_id", "message_id", "inline_message_id", "business_connection_id"],
             [],
         )
         assert await check_shortcut_call(
@@ -2380,7 +2417,7 @@ class TestMessageWithoutRequest(TestMessageBase):
             message.get_bot(),
             "edit_message_media",
             skip_params=["inline_message_id"],
-            shortcut_kwargs=["message_id", "chat_id"],
+            shortcut_kwargs=["message_id", "chat_id", "business_connection_id"],
         )
         assert await check_defaults_handling(message.edit_media, message.get_bot())
 
@@ -2397,7 +2434,7 @@ class TestMessageWithoutRequest(TestMessageBase):
         assert check_shortcut_signature(
             Message.edit_reply_markup,
             Bot.edit_message_reply_markup,
-            ["chat_id", "message_id", "inline_message_id"],
+            ["chat_id", "message_id", "inline_message_id", "business_connection_id"],
             [],
         )
         assert await check_shortcut_call(
@@ -2405,7 +2442,7 @@ class TestMessageWithoutRequest(TestMessageBase):
             message.get_bot(),
             "edit_message_reply_markup",
             skip_params=["inline_message_id"],
-            shortcut_kwargs=["message_id", "chat_id"],
+            shortcut_kwargs=["message_id", "chat_id", "business_connection_id"],
         )
         assert await check_defaults_handling(message.edit_reply_markup, message.get_bot())
 
@@ -2424,7 +2461,7 @@ class TestMessageWithoutRequest(TestMessageBase):
         assert check_shortcut_signature(
             Message.edit_live_location,
             Bot.edit_message_live_location,
-            ["chat_id", "message_id", "inline_message_id"],
+            ["chat_id", "message_id", "inline_message_id", "business_connection_id"],
             [],
         )
         assert await check_shortcut_call(
@@ -2432,7 +2469,7 @@ class TestMessageWithoutRequest(TestMessageBase):
             message.get_bot(),
             "edit_message_live_location",
             skip_params=["inline_message_id"],
-            shortcut_kwargs=["message_id", "chat_id"],
+            shortcut_kwargs=["message_id", "chat_id", "business_connection_id"],
         )
         assert await check_defaults_handling(message.edit_live_location, message.get_bot())
 
@@ -2448,7 +2485,7 @@ class TestMessageWithoutRequest(TestMessageBase):
         assert check_shortcut_signature(
             Message.stop_live_location,
             Bot.stop_message_live_location,
-            ["chat_id", "message_id", "inline_message_id"],
+            ["chat_id", "message_id", "inline_message_id", "business_connection_id"],
             [],
         )
         assert await check_shortcut_call(
@@ -2456,7 +2493,7 @@ class TestMessageWithoutRequest(TestMessageBase):
             message.get_bot(),
             "stop_message_live_location",
             skip_params=["inline_message_id"],
-            shortcut_kwargs=["message_id", "chat_id"],
+            shortcut_kwargs=["message_id", "chat_id", "business_connection_id"],
         )
         assert await check_defaults_handling(message.stop_live_location, message.get_bot())
 
@@ -2536,9 +2573,17 @@ class TestMessageWithoutRequest(TestMessageBase):
             return chat_id and message_id
 
         assert check_shortcut_signature(
-            Message.stop_poll, Bot.stop_poll, ["chat_id", "message_id"], []
+            Message.stop_poll,
+            Bot.stop_poll,
+            ["chat_id", "message_id", "business_connection_id"],
+            [],
         )
-        assert await check_shortcut_call(message.stop_poll, message.get_bot(), "stop_poll")
+        assert await check_shortcut_call(
+            message.stop_poll,
+            message.get_bot(),
+            "stop_poll",
+            shortcut_kwargs=["business_connection_id"],
+        )
         assert await check_defaults_handling(message.stop_poll, message.get_bot())
 
         monkeypatch.setattr(message.get_bot(), "stop_poll", make_assertion)
@@ -2551,9 +2596,17 @@ class TestMessageWithoutRequest(TestMessageBase):
             return chat_id and message_id
 
         assert check_shortcut_signature(
-            Message.pin, Bot.pin_chat_message, ["chat_id", "message_id"], []
+            Message.pin,
+            Bot.pin_chat_message,
+            ["chat_id", "message_id", "business_connection_id"],
+            [],
         )
-        assert await check_shortcut_call(message.pin, message.get_bot(), "pin_chat_message")
+        assert await check_shortcut_call(
+            message.pin,
+            message.get_bot(),
+            "pin_chat_message",
+            shortcut_kwargs=["chat_id", "message_id", "business_connection_id"],
+        )
         assert await check_defaults_handling(message.pin, message.get_bot())
 
         monkeypatch.setattr(message.get_bot(), "pin_chat_message", make_assertion)
@@ -2566,13 +2619,16 @@ class TestMessageWithoutRequest(TestMessageBase):
             return chat_id and message_id
 
         assert check_shortcut_signature(
-            Message.unpin, Bot.unpin_chat_message, ["chat_id", "message_id"], []
+            Message.unpin,
+            Bot.unpin_chat_message,
+            ["chat_id", "message_id", "business_connection_id"],
+            [],
         )
         assert await check_shortcut_call(
             message.unpin,
             message.get_bot(),
             "unpin_chat_message",
-            shortcut_kwargs=["chat_id", "message_id"],
+            shortcut_kwargs=["chat_id", "message_id", "business_connection_id"],
         )
         assert await check_defaults_handling(message.unpin, message.get_bot())
 
@@ -2599,7 +2655,9 @@ class TestMessageWithoutRequest(TestMessageBase):
     async def test_default_do_quote(
         self, bot, message, default_quote, chat_type, expected, monkeypatch
     ):
-        message.set_bot(PytestExtBot(token=bot.token, defaults=Defaults(do_quote=default_quote)))
+        original_bot = message.get_bot()
+        temp_bot = PytestExtBot(token=bot.token, defaults=Defaults(do_quote=default_quote))
+        message.set_bot(temp_bot)
 
         async def make_assertion(*_, **kwargs):
             reply_parameters = kwargs.get("reply_parameters") or ReplyParameters(message_id=False)
@@ -2612,7 +2670,7 @@ class TestMessageWithoutRequest(TestMessageBase):
             message.chat.type = chat_type
             assert await message.reply_text("test")
         finally:
-            message.get_bot()._defaults = None
+            message.set_bot(original_bot)
 
     async def test_edit_forum_topic(self, monkeypatch, message):
         async def make_assertion(*_, **kwargs):
@@ -2731,3 +2789,15 @@ class TestMessageWithoutRequest(TestMessageBase):
 
         monkeypatch.setattr(message.get_bot(), "unpin_all_forum_topic_messages", make_assertion)
         assert await message.unpin_all_forum_topic_messages()
+
+    def test_attachement_successful_payment_deprecated(self, message, recwarn):
+        message.successful_payment = "something"
+        # kinda unnecessary to assert but one needs to call the function ofc so. Here we are.
+        assert message.effective_attachment == "something"
+        assert len(recwarn) == 1
+        assert (
+            "successful_payment will no longer be considered an attachment in future major "
+            "versions" in str(recwarn[0].message)
+        )
+        assert recwarn[0].category is PTBDeprecationWarning
+        assert recwarn[0].filename == __file__

@@ -20,7 +20,6 @@
 
 
 from telegram import Animation, Audio, Document, PhotoSize, Sticker, Video, VideoNote, Voice
-from telegram._chat import _deprecated_attrs
 from tests.test_official.helpers import _get_params_base
 
 IGNORED_OBJECTS = ("ResponseParameters",)
@@ -118,7 +117,7 @@ PTB_EXTRA_PARAMS = {
     "PassportElementError": {"source", "type", "message"},
     "InputMedia": {"caption", "caption_entities", "media", "media_type", "parse_mode"},
     "InputMedia(Animation|Audio|Document|Photo|Video|VideoNote|Voice)": {"filename"},
-    "InputFile": {"attach", "filename", "obj"},
+    "InputFile": {"attach", "filename", "obj", "read_file_handle"},
     "MaybeInaccessibleMessage": {"date", "message_id", "chat"},  # attributes common to all subcls
     "ChatBoostSource": {"source"},  # attributes common to all subclasses
     "MessageOrigin": {"type", "date"},  # attributes common to all subclasses
@@ -126,6 +125,10 @@ PTB_EXTRA_PARAMS = {
     "BackgroundType": {"type"},  # attributes common to all subclasses
     "BackgroundFill": {"type"},  # attributes common to all subclasses
     "InputTextMessageContent": {"disable_web_page_preview"},  # convenience arg, here for bw compat
+    "RevenueWithdrawalState": {"type"},  # attributes common to all subclasses
+    "TransactionPartner": {"type"},  # attributes common to all subclasses
+    "PaidMedia": {"type"},  # attributes common to all subclasses
+    "InputPaidMedia": {"type", "media"},  # attributes common to all subclasses
 }
 
 
@@ -150,6 +153,10 @@ PTB_IGNORED_PARAMS = {
     r"ReactionType\w+": {"type"},
     r"BackgroundType\w+": {"type"},
     r"BackgroundFill\w+": {"type"},
+    r"RevenueWithdrawalState\w+": {"type"},
+    r"TransactionPartner\w+": {"type"},
+    r"PaidMedia\w+": {"type"},
+    r"InputPaidMedia\w+": {"type"},
 }
 
 
@@ -174,7 +181,7 @@ def ignored_param_requirements(object_name: str) -> set[str]:
 
 # Arguments that are optional arguments for now for backwards compatibility
 BACKWARDS_COMPAT_KWARGS: dict[str, set[str]] = {
-    "Chat": set(_deprecated_attrs),  # removed by bot api 7.3
+    "send_invoice|create_invoice_link|InputInvoiceMessageContent": {"provider_token"}
 }
 
 

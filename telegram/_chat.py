@@ -20,36 +20,25 @@
 """This module contains an object that represents a Telegram Chat."""
 from datetime import datetime
 from html import escape
-from typing import TYPE_CHECKING, Any, Final, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Final, Optional, Sequence, Tuple, Union
 
 from telegram import constants
-from telegram._birthdate import Birthdate
-from telegram._chatlocation import ChatLocation
 from telegram._chatpermissions import ChatPermissions
-from telegram._files.chatphoto import ChatPhoto
 from telegram._forumtopic import ForumTopic
 from telegram._menubutton import MenuButton
 from telegram._reaction import ReactionType
 from telegram._telegramobject import TelegramObject
 from telegram._utils import enum
-from telegram._utils.argumentparsing import parse_sequence_arg
-from telegram._utils.datetime import extract_tzinfo_from_defaults, from_timestamp
 from telegram._utils.defaultvalue import DEFAULT_NONE
 from telegram._utils.types import CorrectOptionID, FileInput, JSONDict, ODVInput, ReplyMarkup
-from telegram._utils.warnings import warn
 from telegram.helpers import escape_markdown
 from telegram.helpers import mention_html as helpers_mention_html
 from telegram.helpers import mention_markdown as helpers_mention_markdown
-from telegram.warnings import PTBDeprecationWarning
 
 if TYPE_CHECKING:
     from telegram import (
         Animation,
         Audio,
-        Bot,
-        BusinessIntro,
-        BusinessLocation,
-        BusinessOpeningHours,
         ChatInviteLink,
         ChatMember,
         Contact,
@@ -59,6 +48,7 @@ if TYPE_CHECKING:
         InputMediaDocument,
         InputMediaPhoto,
         InputMediaVideo,
+        InputPaidMedia,
         InputPollOption,
         LabeledPrice,
         LinkPreviewOptions,
@@ -77,722 +67,41 @@ if TYPE_CHECKING:
     )
 
 
-_deprecated_attrs = (
-    "accent_color_id",
-    "active_usernames",
-    "available_reactions",
-    "background_custom_emoji_id",
-    "bio",
-    "birthdate",
-    "business_intro",
-    "business_location",
-    "business_opening_hours",
-    "can_set_sticker_set",
-    "custom_emoji_sticker_set_name",
-    "description",
-    "emoji_status_custom_emoji_id",
-    "emoji_status_expiration_date",
-    "has_aggressive_anti_spam_enabled",
-    "has_hidden_members",
-    "has_private_forwards",
-    "has_protected_content",
-    "has_restricted_voice_and_video_messages",
-    "has_visible_history",
-    "invite_link",
-    "join_by_request",
-    "join_to_send_messages",
-    "linked_chat_id",
-    "location",
-    "message_auto_delete_time",
-    "permissions",
-    "personal_chat",
-    "photo",
-    "pinned_message",
-    "profile_accent_color_id",
-    "profile_background_custom_emoji_id",
-    "slow_mode_delay",
-    "sticker_set_name",
-    "unrestrict_boost_count",
-)
+class _ChatBase(TelegramObject):
+    """Base class for :class:`telegram.Chat` and :class:`telegram.ChatFullInfo`.
 
-
-class Chat(TelegramObject):
-    """This object represents a chat.
-
-    Objects of this class are comparable in terms of equality. Two objects of this class are
-    considered equal, if their :attr:`id` is equal.
-
-    .. versionchanged:: 20.0
-
-        * Removed the deprecated methods ``kick_member`` and ``get_members_count``.
-        * The following are now keyword-only arguments in Bot methods:
-          ``location``, ``filename``, ``contact``, ``{read, write, connect, pool}_timeout``,
-          ``api_kwargs``. Use a named argument for those,
-          and notice that some positional arguments changed position as a result.
-
-    .. versionchanged:: 20.0
-        Removed the attribute ``all_members_are_administrators``. As long as Telegram provides
-        this field for backwards compatibility, it is available through
-        :attr:`~telegram.TelegramObject.api_kwargs`.
-
-    Args:
-        id (:obj:`int`): Unique identifier for this chat. This number may be greater than 32 bits
-            and some programming languages may have difficulty/silent defects in interpreting it.
-            But it is smaller than 52 bits, so a signed 64-bit integer or double-precision float
-            type are safe for storing this identifier.
-        type (:obj:`str`): Type of chat, can be either :attr:`PRIVATE`, :attr:`GROUP`,
-            :attr:`SUPERGROUP` or :attr:`CHANNEL`.
-        title (:obj:`str`, optional): Title, for supergroups, channels and group chats.
-        username (:obj:`str`, optional): Username, for private chats, supergroups and channels if
-            available.
-        first_name (:obj:`str`, optional): First name of the other party in a private chat.
-        last_name (:obj:`str`, optional): Last name of the other party in a private chat.
-        photo (:class:`telegram.ChatPhoto`, optional): Chat photo.
-            Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        bio (:obj:`str`, optional): Bio of the other party in a private chat. Returned only in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        has_private_forwards (:obj:`bool`, optional): :obj:`True`, if privacy settings of the other
-            party in the private chat allows to use ``tg://user?id=<user_id>`` links only in chats
-            with the user. Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 13.9
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        description (:obj:`str`, optional): Description, for groups, supergroups and channel chats.
-            Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        invite_link (:obj:`str`, optional): Primary invite link, for groups, supergroups and
-            channel. Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        pinned_message (:class:`telegram.Message`, optional): The most recent pinned message
-            (by sending date). Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        permissions (:class:`telegram.ChatPermissions`): Optional. Default chat member permissions,
-            for groups and supergroups. Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        slow_mode_delay (:obj:`int`, optional): For supergroups, the minimum allowed delay between
-            consecutive messages sent by each unprivileged user.
-            Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        message_auto_delete_time (:obj:`int`, optional): The time after which all messages sent to
-            the chat will be automatically deleted; in seconds. Returned only in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 13.4
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        has_protected_content (:obj:`bool`, optional): :obj:`True`, if messages from the chat can't
-            be forwarded to other chats. Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 13.9
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        has_visible_history (:obj:`bool`, optional): :obj:`True`, if new chat members will have
-            access to old messages; available only to chat administrators. Returned only in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 20.8
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        sticker_set_name (:obj:`str`, optional): For supergroups, name of group sticker set.
-            Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        can_set_sticker_set (:obj:`bool`, optional): :obj:`True`, if the bot can change group the
-            sticker set. Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        linked_chat_id (:obj:`int`, optional): Unique identifier for the linked chat, i.e. the
-            discussion group identifier for a channel and vice versa; for supergroups and channel
-            chats. Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        location (:class:`telegram.ChatLocation`, optional): For supergroups, the location to which
-            the supergroup is connected. Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        join_to_send_messages (:obj:`bool`, optional): :obj:`True`, if users need to join the
-            supergroup before they can send messages. Returned only in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 20.0
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        join_by_request (:obj:`bool`, optional): :obj:`True`, if all users directly joining the
-            supergroup without using an invite link need to be approved by supergroup
-            administrators. Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 20.0
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        has_restricted_voice_and_video_messages (:obj:`bool`, optional): :obj:`True`, if the
-            privacy settings of the other party restrict sending voice and video note messages
-            in the private chat. Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 20.0
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        is_forum (:obj:`bool`, optional): :obj:`True`, if the supergroup chat is a forum
-            (has topics_ enabled).
-
-            .. versionadded:: 20.0
-        active_usernames (Sequence[:obj:`str`], optional):  If set, the list of all `active chat
-            usernames <https://telegram.org/blog/topics-in-groups-collectible-usernames\
-            #collectible-usernames>`_; for private chats, supergroups and channels. Returned
-            only in :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 20.0
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        business_intro (:class:`telegram.BusinessIntro`, optional): For private chats with
-            business accounts, the intro of the business. Returned only in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 21.1
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        business_location (:class:`telegram.BusinessLocation`, optional): For private chats with
-            business accounts, the location of the business. Returned only in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 21.1
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        business_opening_hours (:class:`telegram.BusinessOpeningHours`, optional): For private
-            chats with business accounts, the opening hours of the business. Returned only in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 21.1
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        available_reactions (Sequence[:class:`telegram.ReactionType`], optional): List of available
-            reactions allowed in the chat. If omitted, then all of
-            :const:`telegram.constants.ReactionEmoji` are allowed. Returned only in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 20.8
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        accent_color_id (:obj:`int`, optional): Identifier of the
-            :class:`accent color <telegram.constants.AccentColor>` for the chat name and
-            backgrounds of the chat photo, reply header, and link preview. See `accent colors`_
-            for more details. Returned only in :meth:`telegram.Bot.get_chat`. Always returned in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 20.8
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        background_custom_emoji_id (:obj:`str`, optional): Custom emoji identifier of emoji chosen
-            by the chat for the reply header and link preview background. Returned only in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 20.8
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        profile_accent_color_id (:obj:`int`, optional): Identifier of the
-            :class:`accent color <telegram.constants.ProfileAccentColor>` for the chat's profile
-            background. See profile `accent colors`_ for more details. Returned only in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 20.8
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        profile_background_custom_emoji_id (:obj:`str`, optional): Custom emoji identifier of
-            the emoji chosen by the chat for its profile background. Returned only in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 20.8
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        emoji_status_custom_emoji_id (:obj:`str`, optional): Custom emoji identifier of emoji
-            status of the chat or the other party in a private chat. Returned only in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 20.0
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        emoji_status_expiration_date (:class:`datetime.datetime`, optional): Expiration date of
-            emoji status of the chat or the other party in a private chat, in seconds. Returned
-            only in :meth:`telegram.Bot.get_chat`.
-            |datetime_localization|
-
-            .. versionadded:: 20.5
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        has_aggressive_anti_spam_enabled (:obj:`bool`, optional): :obj:`True`, if aggressive
-            anti-spam checks are enabled in the supergroup. The field is only available to chat
-            administrators. Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 20.0
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        has_hidden_members (:obj:`bool`, optional): :obj:`True`, if non-administrators can only
-            get the list of bots and administrators in the chat. Returned only in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 20.0
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        unrestrict_boost_count (:obj:`int`, optional): For supergroups, the minimum number of
-            boosts that a non-administrator user needs to add in order to ignore slow mode and chat
-            permissions. Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 21.0
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        custom_emoji_sticker_set_name (:obj:`str`, optional): For supergroups, the name of the
-            group's custom emoji sticker set. Custom emoji from this set can be used by all users
-            and bots in the group. Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 21.0
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        birthdate (:obj:`telegram.Birthdate`, optional): For private chats,
-            the date of birth of the user. Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 21.1
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        personal_chat (:obj:`telegram.Chat`, optional): For private chats, the personal channel of
-            the user. Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 21.1
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-
-    Attributes:
-        id (:obj:`int`): Unique identifier for this chat. This number may be greater than 32 bits
-            and some programming languages may have difficulty/silent defects in interpreting it.
-            But it is smaller than 52 bits, so a signed 64-bit integer or double-precision float
-            type are safe for storing this identifier.
-        type (:obj:`str`): Type of chat, can be either :attr:`PRIVATE`, :attr:`GROUP`,
-            :attr:`SUPERGROUP` or :attr:`CHANNEL`.
-        title (:obj:`str`): Optional. Title, for supergroups, channels and group chats.
-        username (:obj:`str`): Optional. Username, for private chats, supergroups and channels if
-            available.
-        first_name (:obj:`str`): Optional. First name of the other party in a private chat.
-        last_name (:obj:`str`): Optional. Last name of the other party in a private chat.
-        photo (:class:`telegram.ChatPhoto`): Optional. Chat photo.
-            Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        bio (:obj:`str`): Optional. Bio of the other party in a private chat. Returned only in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        has_private_forwards (:obj:`bool`): Optional. :obj:`True`, if privacy settings of the other
-            party in the private chat allows to use ``tg://user?id=<user_id>`` links only in chats
-            with the user. Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 13.9
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        description (:obj:`str`): Optional. Description, for groups, supergroups and channel chats.
-            Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        invite_link (:obj:`str`): Optional. Primary invite link, for groups, supergroups and
-            channel. Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        pinned_message (:class:`telegram.Message`): Optional. The most recent pinned message
-            (by sending date). Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        permissions (:class:`telegram.ChatPermissions`): Optional. Default chat member permissions,
-            for groups and supergroups. Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        slow_mode_delay (:obj:`int`): Optional. For supergroups, the minimum allowed delay between
-            consecutive messages sent by each unprivileged user. Returned only in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        message_auto_delete_time (:obj:`int`): Optional. The time after which all messages sent to
-            the chat will be automatically deleted; in seconds. Returned only in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 13.4
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        has_protected_content (:obj:`bool`): Optional. :obj:`True`, if messages from the chat can't
-            be forwarded to other chats. Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 13.9
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        has_visible_history (:obj:`bool`): Optional. :obj:`True`, if new chat members will have
-            access to old messages; available only to chat administrators. Returned only in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 20.8
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        sticker_set_name (:obj:`str`): Optional. For supergroups, name of Group sticker set.
-            Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        can_set_sticker_set (:obj:`bool`): Optional. :obj:`True`, if the bot can change group the
-            sticker set. Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        linked_chat_id (:obj:`int`): Optional. Unique identifier for the linked chat, i.e. the
-            discussion group identifier for a channel and vice versa; for supergroups and channel
-            chats. Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        location (:class:`telegram.ChatLocation`): Optional. For supergroups, the location to which
-            the supergroup is connected. Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        join_to_send_messages (:obj:`bool`): Optional. :obj:`True`, if users need to join
-            the supergroup before they can send messages. Returned only in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 20.0
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        join_by_request (:obj:`bool`): Optional. :obj:`True`, if all users directly joining the
-            supergroup without using an invite link need to be approved by supergroup
-            administrators. Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 20.0
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        has_restricted_voice_and_video_messages (:obj:`bool`): Optional. :obj:`True`, if the
-            privacy settings of the other party restrict sending voice and video note messages
-            in the private chat. Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 20.0
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        is_forum (:obj:`bool`): Optional. :obj:`True`, if the supergroup chat is a forum
-            (has topics_ enabled).
-
-            .. versionadded:: 20.0
-        active_usernames (Tuple[:obj:`str`]): Optional. If set, the list of all `active chat
-            usernames <https://telegram.org/blog/topics-in-groups-collectible-usernames\
-            #collectible-usernames>`_; for private chats, supergroups and channels. Returned
-            only in :meth:`telegram.Bot.get_chat`.
-            This list is empty if the chat has no active usernames or this chat instance was not
-            obtained via :meth:`~telegram.Bot.get_chat`.
-
-            .. versionadded:: 20.0
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        business_intro (:class:`telegram.BusinessIntro`): Optional. For private chats with
-            business accounts, the intro of the business. Returned only in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 21.1
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        business_location (:class:`telegram.BusinessLocation`): Optional. For private chats with
-            business accounts, the location of the business. Returned only in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 21.1
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        business_opening_hours (:class:`telegram.BusinessOpeningHours`): Optional. For private
-            chats with business accounts, the opening hours of the business. Returned only in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 21.1
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        available_reactions (Tuple[:class:`telegram.ReactionType`]): Optional. List of available
-            reactions allowed in the chat. If omitted, then all of
-            :const:`telegram.constants.ReactionEmoji` are allowed. Returned only in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 20.8
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        accent_color_id (:obj:`int`): Optional. Identifier of the
-            :class:`accent color <telegram.constants.AccentColor>` for the chat name and
-            backgrounds of the chat photo, reply header, and link preview. See `accent colors`_
-            for more details. Returned only in :meth:`telegram.Bot.get_chat`. Always returned in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 20.8
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        background_custom_emoji_id (:obj:`str`): Optional. Custom emoji identifier of emoji chosen
-            by the chat for the reply header and link preview background. Returned only in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 20.8
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        profile_accent_color_id (:obj:`int`): Optional. Identifier of the
-            :class:`accent color <telegram.constants.ProfileAccentColor>` for the chat's profile
-            background. See profile `accent colors`_ for more details. Returned only in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 20.8
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        profile_background_custom_emoji_id (:obj:`str`): Optional. Custom emoji identifier of
-            the emoji chosen by the chat for its profile background. Returned only in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 20.8
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        emoji_status_custom_emoji_id (:obj:`str`): Optional. Custom emoji identifier of emoji
-            status of the chat or the other party in a private chat. Returned only in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 20.0
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        emoji_status_expiration_date (:class:`datetime.datetime`): Optional. Expiration date of
-            emoji status of the chat or the other party in a private chat, in seconds. Returned
-            only in :meth:`telegram.Bot.get_chat`.
-            |datetime_localization|
-
-            .. versionadded:: 20.5
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        has_aggressive_anti_spam_enabled (:obj:`bool`): Optional. :obj:`True`, if aggressive
-            anti-spam checks are enabled in the supergroup. The field is only available to chat
-            administrators. Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 20.0
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        has_hidden_members (:obj:`bool`): Optional. :obj:`True`, if non-administrators can only
-            get the list of bots and administrators in the chat. Returned only in
-            :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 20.0
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        unrestrict_boost_count (:obj:`int`): Optional. For supergroups, the minimum number of
-            boosts that a non-administrator user needs to add in order to ignore slow mode and chat
-            permissions. Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 21.0
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        custom_emoji_sticker_set_name (:obj:`str`): Optional. For supergroups, the name of the
-            group's custom emoji sticker set. Custom emoji from this set can be used by all users
-            and bots in the group. Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 21.0
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        birthdate (:obj:`telegram.Birthdate`): Optional. For private chats,
-            the date of birth of the user. Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 21.1
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-        personal_chat (:obj:`telegram.Chat`): Optional. For private chats, the personal channel of
-            the user. Returned only in :meth:`telegram.Bot.get_chat`.
-
-            .. versionadded:: 21.1
-
-            .. deprecated:: 21.2
-                In accordance to Bot API 7.3, this attribute will be moved to
-                :class:`telegram.ChatFullInfo`.
-
-    .. _topics: https://telegram.org/blog/topics-in-groups-collectible-usernames#topics-in-groups
-    .. _accent colors: https://core.telegram.org/bots/api#accent-colors
+    .. versionadded:: 21.3
     """
 
-    __slots__ = (
-        "accent_color_id",
-        "active_usernames",
-        "available_reactions",
-        "background_custom_emoji_id",
-        "bio",
-        "birthdate",
-        "business_intro",
-        "business_location",
-        "business_opening_hours",
-        "can_set_sticker_set",
-        "custom_emoji_sticker_set_name",
-        "description",
-        "emoji_status_custom_emoji_id",
-        "emoji_status_expiration_date",
-        "first_name",
-        "has_aggressive_anti_spam_enabled",
-        "has_hidden_members",
-        "has_private_forwards",
-        "has_protected_content",
-        "has_restricted_voice_and_video_messages",
-        "has_visible_history",
-        "id",
-        "invite_link",
-        "is_forum",
-        "join_by_request",
-        "join_to_send_messages",
-        "last_name",
-        "linked_chat_id",
-        "location",
-        "message_auto_delete_time",
-        "permissions",
-        "personal_chat",
-        "photo",
-        "pinned_message",
-        "profile_accent_color_id",
-        "profile_background_custom_emoji_id",
-        "slow_mode_delay",
-        "sticker_set_name",
-        "title",
-        "type",
-        "unrestrict_boost_count",
-        "username",
-    )
+    __slots__ = ("first_name", "id", "is_forum", "last_name", "title", "type", "username")
+
+    def __init__(
+        self,
+        id: int,
+        type: str,
+        title: Optional[str] = None,
+        username: Optional[str] = None,
+        first_name: Optional[str] = None,
+        last_name: Optional[str] = None,
+        is_forum: Optional[bool] = None,
+        *,
+        api_kwargs: Optional[JSONDict] = None,
+    ):
+        super().__init__(api_kwargs=api_kwargs)
+        # Required
+        self.id: int = id
+        self.type: str = enum.get_member(constants.ChatType, type, type)
+        # Optionals
+        self.title: Optional[str] = title
+        self.username: Optional[str] = username
+        self.first_name: Optional[str] = first_name
+        self.last_name: Optional[str] = last_name
+        self.is_forum: Optional[bool] = is_forum
+
+        self._id_attrs = (self.id,)
+
+        self._freeze()
+
     SENDER: Final[str] = constants.ChatType.SENDER
     """:const:`telegram.constants.ChatType.SENDER`
 
@@ -807,138 +116,11 @@ class Chat(TelegramObject):
     CHANNEL: Final[str] = constants.ChatType.CHANNEL
     """:const:`telegram.constants.ChatType.CHANNEL`"""
 
-    def __init__(
-        self,
-        id: int,
-        type: str,
-        title: Optional[str] = None,
-        username: Optional[str] = None,
-        first_name: Optional[str] = None,
-        last_name: Optional[str] = None,
-        photo: Optional[ChatPhoto] = None,
-        description: Optional[str] = None,
-        invite_link: Optional[str] = None,
-        pinned_message: Optional["Message"] = None,
-        permissions: Optional[ChatPermissions] = None,
-        sticker_set_name: Optional[str] = None,
-        can_set_sticker_set: Optional[bool] = None,
-        slow_mode_delay: Optional[int] = None,
-        bio: Optional[str] = None,
-        linked_chat_id: Optional[int] = None,
-        location: Optional[ChatLocation] = None,
-        message_auto_delete_time: Optional[int] = None,
-        has_private_forwards: Optional[bool] = None,
-        has_protected_content: Optional[bool] = None,
-        join_to_send_messages: Optional[bool] = None,
-        join_by_request: Optional[bool] = None,
-        has_restricted_voice_and_video_messages: Optional[bool] = None,
-        is_forum: Optional[bool] = None,
-        active_usernames: Optional[Sequence[str]] = None,
-        emoji_status_custom_emoji_id: Optional[str] = None,
-        emoji_status_expiration_date: Optional[datetime] = None,
-        has_aggressive_anti_spam_enabled: Optional[bool] = None,
-        has_hidden_members: Optional[bool] = None,
-        available_reactions: Optional[Sequence[ReactionType]] = None,
-        accent_color_id: Optional[int] = None,  # required in API 7.3 - Optional for back compat
-        background_custom_emoji_id: Optional[str] = None,
-        profile_accent_color_id: Optional[int] = None,
-        profile_background_custom_emoji_id: Optional[str] = None,
-        has_visible_history: Optional[bool] = None,
-        unrestrict_boost_count: Optional[int] = None,
-        custom_emoji_sticker_set_name: Optional[str] = None,
-        birthdate: Optional[Birthdate] = None,
-        personal_chat: Optional["Chat"] = None,
-        business_intro: Optional["BusinessIntro"] = None,
-        business_location: Optional["BusinessLocation"] = None,
-        business_opening_hours: Optional["BusinessOpeningHours"] = None,
-        *,
-        api_kwargs: Optional[JSONDict] = None,
-    ):
-        super().__init__(api_kwargs=api_kwargs)
-        # Required
-        self.id: int = id
-        self.type: str = enum.get_member(constants.ChatType, type, type)
-        # Optionals
-        self.title: Optional[str] = title
-        self.username: Optional[str] = username
-        self.first_name: Optional[str] = first_name
-        self.last_name: Optional[str] = last_name
-        self.photo: Optional[ChatPhoto] = photo
-        self.bio: Optional[str] = bio
-        self.has_private_forwards: Optional[bool] = has_private_forwards
-        self.description: Optional[str] = description
-        self.invite_link: Optional[str] = invite_link
-        self.pinned_message: Optional[Message] = pinned_message
-        self.permissions: Optional[ChatPermissions] = permissions
-        self.slow_mode_delay: Optional[int] = slow_mode_delay
-        self.message_auto_delete_time: Optional[int] = (
-            int(message_auto_delete_time) if message_auto_delete_time is not None else None
-        )
-        self.has_protected_content: Optional[bool] = has_protected_content
-        self.has_visible_history: Optional[bool] = has_visible_history
-        self.sticker_set_name: Optional[str] = sticker_set_name
-        self.can_set_sticker_set: Optional[bool] = can_set_sticker_set
-        self.linked_chat_id: Optional[int] = linked_chat_id
-        self.location: Optional[ChatLocation] = location
-        self.join_to_send_messages: Optional[bool] = join_to_send_messages
-        self.join_by_request: Optional[bool] = join_by_request
-        self.has_restricted_voice_and_video_messages: Optional[bool] = (
-            has_restricted_voice_and_video_messages
-        )
-        self.is_forum: Optional[bool] = is_forum
-        self.active_usernames: Tuple[str, ...] = parse_sequence_arg(active_usernames)
-        self.emoji_status_custom_emoji_id: Optional[str] = emoji_status_custom_emoji_id
-        self.emoji_status_expiration_date: Optional[datetime] = emoji_status_expiration_date
-        self.has_aggressive_anti_spam_enabled: Optional[bool] = has_aggressive_anti_spam_enabled
-        self.has_hidden_members: Optional[bool] = has_hidden_members
-        self.available_reactions: Optional[Tuple[ReactionType, ...]] = parse_sequence_arg(
-            available_reactions
-        )
-        self.accent_color_id: Optional[int] = accent_color_id
-        self.background_custom_emoji_id: Optional[str] = background_custom_emoji_id
-        self.profile_accent_color_id: Optional[int] = profile_accent_color_id
-        self.profile_background_custom_emoji_id: Optional[str] = profile_background_custom_emoji_id
-        self.unrestrict_boost_count: Optional[int] = unrestrict_boost_count
-        self.custom_emoji_sticker_set_name: Optional[str] = custom_emoji_sticker_set_name
-        self.birthdate: Optional[Birthdate] = birthdate
-        self.personal_chat: Optional["Chat"] = personal_chat
-        self.business_intro: Optional["BusinessIntro"] = business_intro
-        self.business_location: Optional["BusinessLocation"] = business_location
-        self.business_opening_hours: Optional["BusinessOpeningHours"] = business_opening_hours
-
-        if self.__class__ is Chat:
-            for arg in _deprecated_attrs:
-                if (val := object.__getattribute__(self, arg)) is not None and val != ():
-                    warn(
-                        PTBDeprecationWarning(
-                            "21.2",
-                            f"The argument `{arg}` is deprecated and will only be available via "
-                            "`ChatFullInfo` in the future.",
-                        ),
-                        stacklevel=2,
-                    )
-
-        self._id_attrs = (self.id,)
-
-        self._freeze()
-
-    def __getattribute__(self, name: str) -> Any:
-        if name in _deprecated_attrs and self.__class__ is Chat:
-            warn(
-                PTBDeprecationWarning(
-                    "21.2",
-                    f"The attribute `{name}` is deprecated and will only be accessible via "
-                    "`ChatFullInfo` in the future.",
-                ),
-                stacklevel=2,
-            )
-        return super().__getattribute__(name)
-
     @property
     def effective_name(self) -> Optional[str]:
         """
-        :obj:`str`: Convenience property. Gives :attr:`title` if not :obj:`None`,
-        else :attr:`full_name` if not :obj:`None`.
+        :obj:`str`: Convenience property. Gives :attr:`~Chat.title` if not :obj:`None`,
+        else :attr:`~Chat.full_name` if not :obj:`None`.
 
         .. versionadded:: 20.1
         """
@@ -951,8 +133,8 @@ class Chat(TelegramObject):
     @property
     def full_name(self) -> Optional[str]:
         """
-        :obj:`str`: Convenience property. If :attr:`first_name` is not :obj:`None`, gives
-        :attr:`first_name` followed by (if available) :attr:`last_name`.
+        :obj:`str`: Convenience property. If :attr:`~Chat.first_name` is not :obj:`None`, gives
+        :attr:`~Chat.first_name` followed by (if available) :attr:`~Chat.last_name`.
 
         Note:
             :attr:`full_name` will always be :obj:`None`, if the chat is a (super)group or
@@ -968,57 +150,12 @@ class Chat(TelegramObject):
 
     @property
     def link(self) -> Optional[str]:
-        """:obj:`str`: Convenience property. If the chat has a :attr:`username`, returns a t.me
-        link of the chat.
+        """:obj:`str`: Convenience property. If the chat has a :attr:`~Chat.username`, returns a
+        t.me link of the chat.
         """
         if self.username:
             return f"https://t.me/{self.username}"
         return None
-
-    @classmethod
-    def de_json(cls, data: Optional[JSONDict], bot: "Bot") -> Optional["Chat"]:
-        """See :meth:`telegram.TelegramObject.de_json`."""
-        data = cls._parse_data(data)
-
-        if not data:
-            return None
-
-        # Get the local timezone from the bot if it has defaults
-        loc_tzinfo = extract_tzinfo_from_defaults(bot)
-
-        data["emoji_status_expiration_date"] = from_timestamp(
-            data.get("emoji_status_expiration_date"), tzinfo=loc_tzinfo
-        )
-
-        data["photo"] = ChatPhoto.de_json(data.get("photo"), bot)
-        from telegram import (  # pylint: disable=import-outside-toplevel
-            BusinessIntro,
-            BusinessLocation,
-            BusinessOpeningHours,
-            Message,
-        )
-
-        data["pinned_message"] = Message.de_json(data.get("pinned_message"), bot)
-        data["permissions"] = ChatPermissions.de_json(data.get("permissions"), bot)
-        data["location"] = ChatLocation.de_json(data.get("location"), bot)
-        data["available_reactions"] = ReactionType.de_list(data.get("available_reactions"), bot)
-        data["birthdate"] = Birthdate.de_json(data.get("birthdate"), bot)
-        data["personal_chat"] = Chat.de_json(data.get("personal_chat"), bot)
-        data["business_intro"] = BusinessIntro.de_json(data.get("business_intro"), bot)
-        data["business_location"] = BusinessLocation.de_json(data.get("business_location"), bot)
-        data["business_opening_hours"] = BusinessOpeningHours.de_json(
-            data.get("business_opening_hours"), bot
-        )
-
-        api_kwargs = {}
-        # This is a deprecated field that TG still returns for backwards compatibility
-        # Let's filter it out to speed up the de-json process
-        if "all_members_are_administrators" in data:
-            api_kwargs["all_members_are_administrators"] = data.pop(
-                "all_members_are_administrators"
-            )
-
-        return super()._de_json(data=data, bot=bot, api_kwargs=api_kwargs)
 
     def mention_markdown(self, name: Optional[str] = None) -> str:
         """
@@ -1030,17 +167,18 @@ class Chat(TelegramObject):
         .. versionadded:: 20.0
 
         Args:
-            name (:obj:`str`): The name used as a link for the chat. Defaults to :attr:`full_name`.
+            name (:obj:`str`): The name used as a link for the chat. Defaults to
+                :attr:`~Chat.full_name`.
 
         Returns:
             :obj:`str`: The inline mention for the chat as markdown (version 1).
 
         Raises:
             :exc:`TypeError`: If the chat is a private chat and neither the :paramref:`name`
-                nor the :attr:`first_name` is set, then throw an :exc:`TypeError`.
-                If the chat is a public chat and neither the :paramref:`name` nor the :attr:`title`
-                is set, then throw an :exc:`TypeError`. If chat is a private group chat, then
-                throw an :exc:`TypeError`.
+                nor the :attr:`~Chat.first_name` is set, then throw an :exc:`TypeError`.
+                If the chat is a public chat and neither the :paramref:`name` nor the
+                :attr:`~Chat.title` is set, then throw an :exc:`TypeError`. If chat is a
+                private group chat, then throw an :exc:`TypeError`.
 
         """
         if self.type == self.PRIVATE:
@@ -1062,17 +200,18 @@ class Chat(TelegramObject):
         .. versionadded:: 20.0
 
         Args:
-            name (:obj:`str`): The name used as a link for the chat. Defaults to :attr:`full_name`.
+            name (:obj:`str`): The name used as a link for the chat. Defaults to
+                :attr:`~Chat.full_name`.
 
         Returns:
             :obj:`str`: The inline mention for the chat as markdown (version 2).
 
         Raises:
             :exc:`TypeError`: If the chat is a private chat and neither the :paramref:`name`
-                nor the :attr:`first_name` is set, then throw an :exc:`TypeError`.
-                If the chat is a public chat and neither the :paramref:`name` nor the :attr:`title`
-                is set, then throw an :exc:`TypeError`. If chat is a private group chat, then
-                throw an :exc:`TypeError`.
+                nor the :attr:`~Chat.first_name` is set, then throw an :exc:`TypeError`.
+                If the chat is a public chat and neither the :paramref:`name` nor the
+                :attr:`~Chat.title` is set, then throw an :exc:`TypeError`. If chat is a
+                private group chat, then throw an :exc:`TypeError`.
 
         """
         if self.type == self.PRIVATE:
@@ -1101,10 +240,10 @@ class Chat(TelegramObject):
 
         Raises:
             :exc:`TypeError`: If the chat is a private chat and neither the :paramref:`name`
-                nor the :attr:`first_name` is set, then throw an :exc:`TypeError`.
-                If the chat is a public chat and neither the :paramref:`name` nor the :attr:`title`
-                is set, then throw an :exc:`TypeError`. If chat is a private group chat, then
-                throw an :exc:`TypeError`.
+                nor the :attr:`~Chat.first_name` is set, then throw an :exc:`TypeError`.
+                If the chat is a public chat and neither the :paramref:`name` nor the
+                :attr:`~Chat.title` is set, then throw an :exc:`TypeError`.
+                If chat is a private group chat, then throw an :exc:`TypeError`.
 
         """
         if self.type == self.PRIVATE:
@@ -1766,6 +905,7 @@ class Chat(TelegramObject):
         self,
         message_id: int,
         disable_notification: ODVInput[bool] = DEFAULT_NONE,
+        business_connection_id: Optional[str] = None,
         *,
         read_timeout: ODVInput[float] = DEFAULT_NONE,
         write_timeout: ODVInput[float] = DEFAULT_NONE,
@@ -1793,11 +933,13 @@ class Chat(TelegramObject):
             connect_timeout=connect_timeout,
             pool_timeout=pool_timeout,
             api_kwargs=api_kwargs,
+            business_connection_id=business_connection_id,
         )
 
     async def unpin_message(
         self,
         message_id: Optional[int] = None,
+        business_connection_id: Optional[str] = None,
         *,
         read_timeout: ODVInput[float] = DEFAULT_NONE,
         write_timeout: ODVInput[float] = DEFAULT_NONE,
@@ -1824,6 +966,7 @@ class Chat(TelegramObject):
             pool_timeout=pool_timeout,
             api_kwargs=api_kwargs,
             message_id=message_id,
+            business_connection_id=business_connection_id,
         )
 
     async def unpin_all_messages(
@@ -1867,6 +1010,7 @@ class Chat(TelegramObject):
         link_preview_options: ODVInput["LinkPreviewOptions"] = DEFAULT_NONE,
         reply_parameters: Optional["ReplyParameters"] = None,
         business_connection_id: Optional[str] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -1907,6 +1051,7 @@ class Chat(TelegramObject):
             pool_timeout=pool_timeout,
             api_kwargs=api_kwargs,
             business_connection_id=business_connection_id,
+            message_effect_id=message_effect_id,
         )
 
     async def delete_message(
@@ -1983,6 +1128,7 @@ class Chat(TelegramObject):
         message_thread_id: Optional[int] = None,
         reply_parameters: Optional["ReplyParameters"] = None,
         business_connection_id: Optional[str] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2024,6 +1170,7 @@ class Chat(TelegramObject):
             caption_entities=caption_entities,
             reply_parameters=reply_parameters,
             business_connection_id=business_connection_id,
+            message_effect_id=message_effect_id,
         )
 
     async def send_chat_action(
@@ -2076,6 +1223,8 @@ class Chat(TelegramObject):
         has_spoiler: Optional[bool] = None,
         reply_parameters: Optional["ReplyParameters"] = None,
         business_connection_id: Optional[str] = None,
+        message_effect_id: Optional[str] = None,
+        show_caption_above_media: Optional[bool] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2117,6 +1266,8 @@ class Chat(TelegramObject):
             api_kwargs=api_kwargs,
             has_spoiler=has_spoiler,
             business_connection_id=business_connection_id,
+            message_effect_id=message_effect_id,
+            show_caption_above_media=show_caption_above_media,
         )
 
     async def send_contact(
@@ -2131,6 +1282,7 @@ class Chat(TelegramObject):
         message_thread_id: Optional[int] = None,
         reply_parameters: Optional["ReplyParameters"] = None,
         business_connection_id: Optional[str] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2171,6 +1323,7 @@ class Chat(TelegramObject):
             protect_content=protect_content,
             message_thread_id=message_thread_id,
             business_connection_id=business_connection_id,
+            message_effect_id=message_effect_id,
         )
 
     async def send_audio(
@@ -2189,6 +1342,7 @@ class Chat(TelegramObject):
         thumbnail: Optional[FileInput] = None,
         reply_parameters: Optional["ReplyParameters"] = None,
         business_connection_id: Optional[str] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2233,6 +1387,7 @@ class Chat(TelegramObject):
             api_kwargs=api_kwargs,
             thumbnail=thumbnail,
             business_connection_id=business_connection_id,
+            message_effect_id=message_effect_id,
         )
 
     async def send_document(
@@ -2249,6 +1404,7 @@ class Chat(TelegramObject):
         thumbnail: Optional[FileInput] = None,
         reply_parameters: Optional["ReplyParameters"] = None,
         business_connection_id: Optional[str] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2291,6 +1447,7 @@ class Chat(TelegramObject):
             protect_content=protect_content,
             message_thread_id=message_thread_id,
             business_connection_id=business_connection_id,
+            message_effect_id=message_effect_id,
         )
 
     async def send_dice(
@@ -2302,6 +1459,7 @@ class Chat(TelegramObject):
         message_thread_id: Optional[int] = None,
         reply_parameters: Optional["ReplyParameters"] = None,
         business_connection_id: Optional[str] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2337,6 +1495,7 @@ class Chat(TelegramObject):
             protect_content=protect_content,
             message_thread_id=message_thread_id,
             business_connection_id=business_connection_id,
+            message_effect_id=message_effect_id,
         )
 
     async def send_game(
@@ -2348,6 +1507,7 @@ class Chat(TelegramObject):
         message_thread_id: Optional[int] = None,
         reply_parameters: Optional["ReplyParameters"] = None,
         business_connection_id: Optional[str] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2383,6 +1543,7 @@ class Chat(TelegramObject):
             protect_content=protect_content,
             message_thread_id=message_thread_id,
             business_connection_id=business_connection_id,
+            message_effect_id=message_effect_id,
         )
 
     async def send_invoice(
@@ -2390,7 +1551,7 @@ class Chat(TelegramObject):
         title: str,
         description: str,
         payload: str,
-        provider_token: str,
+        provider_token: Optional[str],
         currency: str,
         prices: Sequence["LabeledPrice"],
         start_parameter: Optional[str] = None,
@@ -2413,6 +1574,7 @@ class Chat(TelegramObject):
         protect_content: ODVInput[bool] = DEFAULT_NONE,
         message_thread_id: Optional[int] = None,
         reply_parameters: Optional["ReplyParameters"] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2477,6 +1639,7 @@ class Chat(TelegramObject):
             protect_content=protect_content,
             message_thread_id=message_thread_id,
             reply_parameters=reply_parameters,
+            message_effect_id=message_effect_id,
         )
 
     async def send_location(
@@ -2493,6 +1656,7 @@ class Chat(TelegramObject):
         message_thread_id: Optional[int] = None,
         reply_parameters: Optional["ReplyParameters"] = None,
         business_connection_id: Optional[str] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2535,6 +1699,7 @@ class Chat(TelegramObject):
             protect_content=protect_content,
             message_thread_id=message_thread_id,
             business_connection_id=business_connection_id,
+            message_effect_id=message_effect_id,
         )
 
     async def send_animation(
@@ -2554,6 +1719,8 @@ class Chat(TelegramObject):
         thumbnail: Optional[FileInput] = None,
         reply_parameters: Optional["ReplyParameters"] = None,
         business_connection_id: Optional[str] = None,
+        message_effect_id: Optional[str] = None,
+        show_caption_above_media: Optional[bool] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2599,6 +1766,8 @@ class Chat(TelegramObject):
             has_spoiler=has_spoiler,
             thumbnail=thumbnail,
             business_connection_id=business_connection_id,
+            message_effect_id=message_effect_id,
+            show_caption_above_media=show_caption_above_media,
         )
 
     async def send_sticker(
@@ -2611,6 +1780,7 @@ class Chat(TelegramObject):
         emoji: Optional[str] = None,
         reply_parameters: Optional["ReplyParameters"] = None,
         business_connection_id: Optional[str] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2647,6 +1817,7 @@ class Chat(TelegramObject):
             message_thread_id=message_thread_id,
             emoji=emoji,
             business_connection_id=business_connection_id,
+            message_effect_id=message_effect_id,
         )
 
     async def send_venue(
@@ -2665,6 +1836,7 @@ class Chat(TelegramObject):
         message_thread_id: Optional[int] = None,
         reply_parameters: Optional["ReplyParameters"] = None,
         business_connection_id: Optional[str] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2709,6 +1881,7 @@ class Chat(TelegramObject):
             protect_content=protect_content,
             message_thread_id=message_thread_id,
             business_connection_id=business_connection_id,
+            message_effect_id=message_effect_id,
         )
 
     async def send_video(
@@ -2729,6 +1902,8 @@ class Chat(TelegramObject):
         thumbnail: Optional[FileInput] = None,
         reply_parameters: Optional["ReplyParameters"] = None,
         business_connection_id: Optional[str] = None,
+        message_effect_id: Optional[str] = None,
+        show_caption_above_media: Optional[bool] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2775,6 +1950,8 @@ class Chat(TelegramObject):
             message_thread_id=message_thread_id,
             has_spoiler=has_spoiler,
             business_connection_id=business_connection_id,
+            message_effect_id=message_effect_id,
+            show_caption_above_media=show_caption_above_media,
         )
 
     async def send_video_note(
@@ -2789,6 +1966,7 @@ class Chat(TelegramObject):
         thumbnail: Optional[FileInput] = None,
         reply_parameters: Optional["ReplyParameters"] = None,
         business_connection_id: Optional[str] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2829,6 +2007,7 @@ class Chat(TelegramObject):
             protect_content=protect_content,
             message_thread_id=message_thread_id,
             business_connection_id=business_connection_id,
+            message_effect_id=message_effect_id,
         )
 
     async def send_voice(
@@ -2844,6 +2023,7 @@ class Chat(TelegramObject):
         message_thread_id: Optional[int] = None,
         reply_parameters: Optional["ReplyParameters"] = None,
         business_connection_id: Optional[str] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2885,6 +2065,7 @@ class Chat(TelegramObject):
             protect_content=protect_content,
             message_thread_id=message_thread_id,
             business_connection_id=business_connection_id,
+            message_effect_id=message_effect_id,
         )
 
     async def send_poll(
@@ -2909,6 +2090,7 @@ class Chat(TelegramObject):
         business_connection_id: Optional[str] = None,
         question_parse_mode: ODVInput[str] = DEFAULT_NONE,
         question_entities: Optional[Sequence["MessageEntity"]] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2945,6 +2127,7 @@ class Chat(TelegramObject):
             write_timeout=write_timeout,
             connect_timeout=connect_timeout,
             pool_timeout=pool_timeout,
+            message_effect_id=message_effect_id,
             explanation=explanation,
             explanation_parse_mode=explanation_parse_mode,
             open_period=open_period,
@@ -2971,6 +2154,7 @@ class Chat(TelegramObject):
         protect_content: ODVInput[bool] = DEFAULT_NONE,
         message_thread_id: Optional[int] = None,
         reply_parameters: Optional["ReplyParameters"] = None,
+        show_caption_above_media: Optional[bool] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -3011,6 +2195,7 @@ class Chat(TelegramObject):
             api_kwargs=api_kwargs,
             protect_content=protect_content,
             message_thread_id=message_thread_id,
+            show_caption_above_media=show_caption_above_media,
         )
 
     async def copy_message(
@@ -3025,6 +2210,7 @@ class Chat(TelegramObject):
         protect_content: ODVInput[bool] = DEFAULT_NONE,
         message_thread_id: Optional[int] = None,
         reply_parameters: Optional["ReplyParameters"] = None,
+        show_caption_above_media: Optional[bool] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -3065,6 +2251,7 @@ class Chat(TelegramObject):
             api_kwargs=api_kwargs,
             protect_content=protect_content,
             message_thread_id=message_thread_id,
+            show_caption_above_media=show_caption_above_media,
         )
 
     async def send_copies(
@@ -3477,6 +2664,81 @@ class Chat(TelegramObject):
             connect_timeout=connect_timeout,
             pool_timeout=pool_timeout,
             api_kwargs=api_kwargs,
+        )
+
+    async def create_subscription_invite_link(
+        self,
+        subscription_period: int,
+        subscription_price: int,
+        name: Optional[str] = None,
+        *,
+        read_timeout: ODVInput[float] = DEFAULT_NONE,
+        write_timeout: ODVInput[float] = DEFAULT_NONE,
+        connect_timeout: ODVInput[float] = DEFAULT_NONE,
+        pool_timeout: ODVInput[float] = DEFAULT_NONE,
+        api_kwargs: Optional[JSONDict] = None,
+    ) -> "ChatInviteLink":
+        """Shortcut for::
+
+            await bot.create_chat_subscription_invite_link(
+                chat_id=update.effective_chat.id, *args, **kwargs
+            )
+
+        For the documentation of the arguments, please see
+        :meth:`telegram.Bot.create_chat_subscription_invite_link`.
+
+        .. versionadded:: 21.5
+
+        Returns:
+            :class:`telegram.ChatInviteLink`
+        """
+        return await self.get_bot().create_chat_subscription_invite_link(
+            chat_id=self.id,
+            subscription_period=subscription_period,
+            subscription_price=subscription_price,
+            name=name,
+            read_timeout=read_timeout,
+            write_timeout=write_timeout,
+            connect_timeout=connect_timeout,
+            pool_timeout=pool_timeout,
+            api_kwargs=api_kwargs,
+        )
+
+    async def edit_subscription_invite_link(
+        self,
+        invite_link: Union[str, "ChatInviteLink"],
+        name: Optional[str] = None,
+        *,
+        read_timeout: ODVInput[float] = DEFAULT_NONE,
+        write_timeout: ODVInput[float] = DEFAULT_NONE,
+        connect_timeout: ODVInput[float] = DEFAULT_NONE,
+        pool_timeout: ODVInput[float] = DEFAULT_NONE,
+        api_kwargs: Optional[JSONDict] = None,
+    ) -> "ChatInviteLink":
+        """Shortcut for::
+
+            await bot.edit_chat_subscription_invite_link(
+                chat_id=update.effective_chat.id, *args, **kwargs
+            )
+
+        For the documentation of the arguments, please see
+        :meth:`telegram.Bot.edit_chat_subscription_invite_link`.
+
+        .. versionadded:: 21.5
+
+        Returns:
+            :class:`telegram.ChatInviteLink`
+
+        """
+        return await self.get_bot().edit_chat_subscription_invite_link(
+            chat_id=self.id,
+            invite_link=invite_link,
+            read_timeout=read_timeout,
+            write_timeout=write_timeout,
+            connect_timeout=connect_timeout,
+            pool_timeout=pool_timeout,
+            api_kwargs=api_kwargs,
+            name=name,
         )
 
     async def approve_join_request(
@@ -4074,3 +3336,116 @@ class Chat(TelegramObject):
             pool_timeout=pool_timeout,
             api_kwargs=api_kwargs,
         )
+
+    async def send_paid_media(
+        self,
+        star_count: int,
+        media: Sequence["InputPaidMedia"],
+        caption: Optional[str] = None,
+        parse_mode: ODVInput[str] = DEFAULT_NONE,
+        caption_entities: Optional[Sequence["MessageEntity"]] = None,
+        show_caption_above_media: Optional[bool] = None,
+        disable_notification: ODVInput[bool] = DEFAULT_NONE,
+        protect_content: ODVInput[bool] = DEFAULT_NONE,
+        reply_parameters: Optional["ReplyParameters"] = None,
+        reply_markup: Optional[ReplyMarkup] = None,
+        business_connection_id: Optional[str] = None,
+        *,
+        allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
+        reply_to_message_id: Optional[int] = None,
+        read_timeout: ODVInput[float] = DEFAULT_NONE,
+        write_timeout: ODVInput[float] = DEFAULT_NONE,
+        connect_timeout: ODVInput[float] = DEFAULT_NONE,
+        pool_timeout: ODVInput[float] = DEFAULT_NONE,
+        api_kwargs: Optional[JSONDict] = None,
+    ) -> "Message":
+        """Shortcut for::
+
+             await bot.send_paid_media(chat_id=update.effective_chat.id, *args, **kwargs)
+
+        For the documentation of the arguments, please see
+        :meth:`telegram.Bot.send_paid_media`.
+
+        .. versionadded:: 21.4
+
+        Returns:
+            :class:`telegram.Message`: On success, instance representing the message posted.
+        """
+        return await self.get_bot().send_paid_media(
+            chat_id=self.id,
+            star_count=star_count,
+            media=media,
+            caption=caption,
+            parse_mode=parse_mode,
+            caption_entities=caption_entities,
+            show_caption_above_media=show_caption_above_media,
+            disable_notification=disable_notification,
+            protect_content=protect_content,
+            reply_parameters=reply_parameters,
+            reply_markup=reply_markup,
+            allow_sending_without_reply=allow_sending_without_reply,
+            reply_to_message_id=reply_to_message_id,
+            read_timeout=read_timeout,
+            write_timeout=write_timeout,
+            connect_timeout=connect_timeout,
+            pool_timeout=pool_timeout,
+            api_kwargs=api_kwargs,
+            business_connection_id=business_connection_id,
+        )
+
+
+class Chat(_ChatBase):
+    """This object represents a chat.
+
+    Objects of this class are comparable in terms of equality. Two objects of this class are
+    considered equal, if their :attr:`id` is equal.
+
+    .. versionchanged:: 20.0
+
+        * Removed the deprecated methods ``kick_member`` and ``get_members_count``.
+        * The following are now keyword-only arguments in Bot methods:
+          ``location``, ``filename``, ``contact``, ``{read, write, connect, pool}_timeout``,
+          ``api_kwargs``. Use a named argument for those,
+          and notice that some positional arguments changed position as a result.
+
+    .. versionchanged:: 20.0
+        Removed the attribute ``all_members_are_administrators``. As long as Telegram provides
+        this field for backwards compatibility, it is available through
+        :attr:`~telegram.TelegramObject.api_kwargs`.
+
+    .. versionchanged:: 21.3
+        As per Bot API 7.3, most of the arguments and attributes of this class have now moved to
+        :class:`telegram.ChatFullInfo`.
+
+    Args:
+        id (:obj:`int`): Unique identifier for this chat.
+        type (:obj:`str`): Type of chat, can be either :attr:`PRIVATE`, :attr:`GROUP`,
+            :attr:`SUPERGROUP` or :attr:`CHANNEL`.
+        title (:obj:`str`, optional): Title, for supergroups, channels and group chats.
+        username (:obj:`str`, optional): Username, for private chats, supergroups and channels if
+            available.
+        first_name (:obj:`str`, optional): First name of the other party in a private chat.
+        last_name (:obj:`str`, optional): Last name of the other party in a private chat.
+        is_forum (:obj:`bool`, optional): :obj:`True`, if the supergroup chat is a forum
+            (has topics_ enabled).
+
+            .. versionadded:: 20.0
+
+    Attributes:
+        id (:obj:`int`): Unique identifier for this chat.
+        type (:obj:`str`): Type of chat, can be either :attr:`PRIVATE`, :attr:`GROUP`,
+            :attr:`SUPERGROUP` or :attr:`CHANNEL`.
+        title (:obj:`str`): Optional. Title, for supergroups, channels and group chats.
+        username (:obj:`str`): Optional. Username, for private chats, supergroups and channels if
+            available.
+        first_name (:obj:`str`): Optional. First name of the other party in a private chat.
+        last_name (:obj:`str`): Optional. Last name of the other party in a private chat.
+        is_forum (:obj:`bool`): Optional. :obj:`True`, if the supergroup chat is a forum
+            (has topics_ enabled).
+
+            .. versionadded:: 20.0
+
+    .. _topics: https://telegram.org/blog/topics-in-groups-collectible-usernames#topics-in-groups
+    """
+
+    __slots__ = ()

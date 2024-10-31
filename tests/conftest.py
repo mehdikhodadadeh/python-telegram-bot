@@ -20,6 +20,7 @@ import asyncio
 import datetime
 import logging
 import sys
+from pathlib import Path
 from typing import Dict, List
 from uuid import uuid4
 
@@ -123,7 +124,7 @@ async def bot(bot_info):
         yield _bot
 
 
-@pytest.fixture()
+@pytest.fixture
 def one_time_bot(bot_info):
     """A function scoped bot since the session bot would shutdown when `async with app` finishes"""
     return make_bot(bot_info)
@@ -205,7 +206,12 @@ def provider_token(bot_info):
     return bot_info["payment_provider_token"]
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
+def subscription_channel_id(bot_info):
+    return bot_info["subscription_channel_id"]
+
+
+@pytest.fixture
 async def app(bot_info):
     # We build a new bot each time so that we use `app` in a context manager without problems
     application = (
@@ -217,7 +223,7 @@ async def app(bot_info):
         await application.shutdown()
 
 
-@pytest.fixture()
+@pytest.fixture
 async def updater(bot_info):
     # We build a new bot each time so that we use `updater` in a context manager without problems
     up = Updater(bot=make_bot(bot_info), update_queue=asyncio.Queue())
@@ -227,7 +233,7 @@ async def updater(bot_info):
         await up.shutdown()
 
 
-@pytest.fixture()
+@pytest.fixture
 def thumb_file():
     with data_file("thumb.jpg").open("rb") as f:
         yield f
@@ -290,7 +296,6 @@ def timezone(tzinfo):
     return tzinfo
 
 
-@pytest.fixture()
-def tmp_file(tmp_path):
-    with tmp_path / uuid4().hex as file:
-        yield file
+@pytest.fixture
+def tmp_file(tmp_path) -> Path:
+    return tmp_path / uuid4().hex

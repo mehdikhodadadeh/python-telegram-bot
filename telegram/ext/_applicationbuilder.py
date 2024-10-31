@@ -207,7 +207,7 @@ class ApplicationBuilder(Generic[BT, CCT, UD, CD, BD, JQ]):
             self._job_queue: ODVInput[JobQueue] = DefaultValue(JobQueue())
         except RuntimeError as exc:
             if "PTB must be installed via" not in str(exc):
-                raise exc
+                raise
             self._job_queue = DEFAULT_NONE
 
         self._persistence: ODVInput[BasePersistence] = DEFAULT_NONE
@@ -322,9 +322,7 @@ class ApplicationBuilder(Generic[BT, CCT, UD, CD, BD, JQ]):
             bot = self._updater.bot
             update_queue = self._updater.update_queue
 
-        application: Application[
-            BT, CCT, UD, CD, BD, JQ
-        ] = DefaultValue.get_value(  # pylint: disable=not-callable
+        application: Application[BT, CCT, UD, CD, BD, JQ] = DefaultValue.get_value(
             self._application_class
         )(
             bot=bot,

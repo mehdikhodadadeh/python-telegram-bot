@@ -25,17 +25,17 @@ from tests.auxil.slots import mro_slots
 @pytest.fixture(scope="module")
 def successful_payment():
     return SuccessfulPayment(
-        TestSuccessfulPaymentBase.currency,
-        TestSuccessfulPaymentBase.total_amount,
-        TestSuccessfulPaymentBase.invoice_payload,
-        TestSuccessfulPaymentBase.telegram_payment_charge_id,
-        TestSuccessfulPaymentBase.provider_payment_charge_id,
-        shipping_option_id=TestSuccessfulPaymentBase.shipping_option_id,
-        order_info=TestSuccessfulPaymentBase.order_info,
+        SuccessfulPaymentTestBase.currency,
+        SuccessfulPaymentTestBase.total_amount,
+        SuccessfulPaymentTestBase.invoice_payload,
+        SuccessfulPaymentTestBase.telegram_payment_charge_id,
+        SuccessfulPaymentTestBase.provider_payment_charge_id,
+        shipping_option_id=SuccessfulPaymentTestBase.shipping_option_id,
+        order_info=SuccessfulPaymentTestBase.order_info,
     )
 
 
-class TestSuccessfulPaymentBase:
+class SuccessfulPaymentTestBase:
     invoice_payload = "invoice_payload"
     shipping_option_id = "shipping_option_id"
     currency = "EUR"
@@ -45,7 +45,7 @@ class TestSuccessfulPaymentBase:
     provider_payment_charge_id = "provider_payment_charge_id"
 
 
-class TestSuccessfulPaymentWithoutRequest(TestSuccessfulPaymentBase):
+class TestSuccessfulPaymentWithoutRequest(SuccessfulPaymentTestBase):
     def test_slot_behaviour(self, successful_payment):
         inst = successful_payment
         for attr in inst.__slots__:
@@ -68,6 +68,7 @@ class TestSuccessfulPaymentWithoutRequest(TestSuccessfulPaymentBase):
         assert successful_payment.invoice_payload == self.invoice_payload
         assert successful_payment.shipping_option_id == self.shipping_option_id
         assert successful_payment.currency == self.currency
+        assert successful_payment.total_amount == self.total_amount
         assert successful_payment.order_info == self.order_info
         assert successful_payment.telegram_payment_charge_id == self.telegram_payment_charge_id
         assert successful_payment.provider_payment_charge_id == self.provider_payment_charge_id
@@ -81,6 +82,7 @@ class TestSuccessfulPaymentWithoutRequest(TestSuccessfulPaymentBase):
             successful_payment_dict["shipping_option_id"] == successful_payment.shipping_option_id
         )
         assert successful_payment_dict["currency"] == successful_payment.currency
+        assert successful_payment_dict["total_amount"] == successful_payment.total_amount
         assert successful_payment_dict["order_info"] == successful_payment.order_info.to_dict()
         assert (
             successful_payment_dict["telegram_payment_charge_id"]

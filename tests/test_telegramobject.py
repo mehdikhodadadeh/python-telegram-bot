@@ -90,6 +90,11 @@ class TestTelegramObject:
         assert to.api_kwargs == {"foo": "bar"}
         assert to.get_bot() is bot
 
+    def test_de_json_optional_bot(self):
+        to = TelegramObject.de_json(data={})
+        with pytest.raises(RuntimeError, match="no bot associated with it"):
+            to.get_bot()
+
     def test_de_list(self, bot):
         class SubClass(TelegramObject):
             def __init__(self, arg: int, **kwargs):
@@ -342,10 +347,14 @@ class TestTelegramObject:
         chat = (await pp.get_chat_data())[1]
         assert chat.id == 1
         assert chat.type == Chat.PRIVATE
-        assert chat.api_kwargs == {
+        api_kwargs_expected = {
             "all_members_are_administrators": True,
             "something": "Manually inserted",
         }
+        # There are older attrs in Chat's api_kwargs which are present but we don't care about them
+        for k, v in api_kwargs_expected.items():
+            assert chat.api_kwargs[k] == v
+
         with pytest.raises(AttributeError):
             # removed attribute should not be available as attribute, only though api_kwargs
             chat.all_members_are_administrators

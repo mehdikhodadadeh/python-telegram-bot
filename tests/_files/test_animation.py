@@ -37,7 +37,7 @@ from tests.auxil.files import data_file
 from tests.auxil.slots import mro_slots
 
 
-@pytest.fixture()
+@pytest.fixture
 def animation_file():
     with data_file("game.gif").open("rb") as f:
         yield f
@@ -51,7 +51,7 @@ async def animation(bot, chat_id):
         ).animation
 
 
-class TestAnimationBase:
+class AnimationTestBase:
     animation_file_id = "CgADAQADngIAAuyVeEez0xRovKi9VAI"
     animation_file_unique_id = "adc3145fd2e84d95b64d68eaa22aa33e"
     width = 320
@@ -66,7 +66,7 @@ class TestAnimationBase:
     caption = "Test *animation*"
 
 
-class TestAnimationWithoutRequest(TestAnimationBase):
+class TestAnimationWithoutRequest(AnimationTestBase):
     def test_slot_behaviour(self, animation):
         for attr in animation.__slots__:
             assert getattr(animation, attr, "err") != "err", f"got extra slot '{attr}'"
@@ -219,7 +219,7 @@ class TestAnimationWithoutRequest(TestAnimationBase):
         )
 
 
-class TestAnimationWithRequest(TestAnimationBase):
+class TestAnimationWithRequest(AnimationTestBase):
     async def test_send_all_args(self, bot, chat_id, animation_file, animation, thumb_file):
         message = await bot.send_animation(
             chat_id,
@@ -233,6 +233,7 @@ class TestAnimationWithRequest(TestAnimationBase):
             protect_content=True,
             thumbnail=thumb_file,
             has_spoiler=True,
+            show_caption_above_media=True,
         )
 
         assert isinstance(message.animation, Animation)
@@ -246,6 +247,7 @@ class TestAnimationWithRequest(TestAnimationBase):
         assert message.animation.thumbnail.width == self.width
         assert message.animation.thumbnail.height == self.height
         assert message.has_protected_content
+        assert message.show_caption_above_media
         try:
             assert message.has_media_spoiler
         except AssertionError:

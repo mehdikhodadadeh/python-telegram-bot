@@ -354,7 +354,7 @@ class TelegramObject:
             memodict (:obj:`dict`): A dictionary that maps objects to their copies.
 
         Returns:
-            :obj:`telegram.TelegramObject`: The copied object.
+            :class:`telegram.TelegramObject`: The copied object.
         """
         bot = self._bot  # Save bot so we can set it after copying
         self.set_bot(None)  # set to None so it is not deepcopied
@@ -403,7 +403,7 @@ class TelegramObject:
     def _de_json(
         cls: Type[Tele_co],
         data: Optional[JSONDict],
-        bot: "Bot",
+        bot: Optional["Bot"],
         api_kwargs: Optional[JSONDict] = None,
     ) -> Optional[Tele_co]:
         if data is None:
@@ -414,7 +414,7 @@ class TelegramObject:
             obj = cls(**data, api_kwargs=api_kwargs)
         except TypeError as exc:
             if "__init__() got an unexpected keyword argument" not in str(exc):
-                raise exc
+                raise
 
             if cls.__INIT_PARAMS_CHECK is not cls:
                 signature = inspect.signature(cls)
@@ -432,12 +432,18 @@ class TelegramObject:
         return obj
 
     @classmethod
-    def de_json(cls: Type[Tele_co], data: Optional[JSONDict], bot: "Bot") -> Optional[Tele_co]:
+    def de_json(
+        cls: Type[Tele_co], data: Optional[JSONDict], bot: Optional["Bot"] = None
+    ) -> Optional[Tele_co]:
         """Converts JSON data to a Telegram object.
 
         Args:
             data (Dict[:obj:`str`, ...]): The JSON data.
-            bot (:class:`telegram.Bot`): The bot associated with this object.
+            bot (:class:`telegram.Bot`, optional): The bot associated with this object. Defaults to
+                :obj:`None`, in which case shortcut methods will not be available.
+
+                .. versionchanged:: 21.4
+                   :paramref:`bot` is now optional and defaults to :obj:`None`
 
         Returns:
             The Telegram object.
@@ -447,7 +453,7 @@ class TelegramObject:
 
     @classmethod
     def de_list(
-        cls: Type[Tele_co], data: Optional[List[JSONDict]], bot: "Bot"
+        cls: Type[Tele_co], data: Optional[List[JSONDict]], bot: Optional["Bot"] = None
     ) -> Tuple[Tele_co, ...]:
         """Converts a list of JSON objects to a tuple of Telegram objects.
 
@@ -458,7 +464,11 @@ class TelegramObject:
 
         Args:
             data (List[Dict[:obj:`str`, ...]]): The JSON data.
-            bot (:class:`telegram.Bot`): The bot associated with these objects.
+            bot (:class:`telegram.Bot`, optional): The bot associated with these object. Defaults
+                to :obj:`None`, in which case shortcut methods will not be available.
+
+                .. versionchanged:: 21.4
+                   :paramref:`bot` is now optional and defaults to :obj:`None`
 
         Returns:
             A tuple of Telegram objects.

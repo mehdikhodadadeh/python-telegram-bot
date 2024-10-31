@@ -86,7 +86,7 @@ class TestUpdater:
 
     # This is needed instead of pytest's temp_path because the file path gets too long on macOS
     # otherwise
-    @pytest.fixture()
+    @pytest.fixture
     def file_path(self) -> str:
         path = TEST_DATA_PATH / "test.sock"
         yield str(path)
@@ -571,7 +571,7 @@ class TestUpdater:
                     else:
                         assert len(caplog.records) > 0
                         assert any(
-                            "Error while getting Updates: TestMessage" in record.getMessage()
+                            "Exception happened while polling for updates." in record.getMessage()
                             and record.name == "telegram.ext.Updater"
                             for record in caplog.records
                         )
@@ -593,7 +593,7 @@ class TestUpdater:
                 else:
                     assert len(caplog.records) > 0
                     assert any(
-                        "Error while getting Updates: TestMessage" in record.getMessage()
+                        "Exception happened while polling for updates." in record.getMessage()
                         and record.name == "telegram.ext.Updater"
                         for record in caplog.records
                     )
@@ -1179,6 +1179,7 @@ class TestUpdater:
 
             assert len(caplog.records) == 1
             assert caplog.records[-1].getMessage().startswith("Something went wrong processing")
+            assert "Received data was: {" in caplog.records[-1].getMessage()
             assert caplog.records[-1].name == "telegram.ext.Updater"
             assert response.status_code == 400
             assert response.text == self.response_text.format(

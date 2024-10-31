@@ -52,8 +52,10 @@ from telegram._inline.inlinekeyboardmarkup import InlineKeyboardMarkup
 from telegram._linkpreviewoptions import LinkPreviewOptions
 from telegram._messageautodeletetimerchanged import MessageAutoDeleteTimerChanged
 from telegram._messageentity import MessageEntity
+from telegram._paidmedia import PaidMediaInfo
 from telegram._passport.passportdata import PassportData
 from telegram._payment.invoice import Invoice
+from telegram._payment.refundedpayment import RefundedPayment
 from telegram._payment.successfulpayment import SuccessfulPayment
 from telegram._poll import Poll
 from telegram._proximityalerttriggered import ProximityAlertTriggered
@@ -66,6 +68,7 @@ from telegram._utils.argumentparsing import parse_sequence_arg
 from telegram._utils.datetime import extract_tzinfo_from_defaults, from_timestamp
 from telegram._utils.defaultvalue import DEFAULT_NONE, DefaultValue
 from telegram._utils.entities import parse_message_entities, parse_message_entity
+from telegram._utils.strings import TextEncoding
 from telegram._utils.types import (
     CorrectOptionID,
     FileInput,
@@ -178,7 +181,10 @@ class MaybeInaccessibleMessage(TelegramObject):
 
     @classmethod
     def _de_json(
-        cls, data: Optional[JSONDict], bot: "Bot", api_kwargs: Optional[JSONDict] = None
+        cls,
+        data: Optional[JSONDict],
+        bot: Optional["Bot"] = None,
+        api_kwargs: Optional[JSONDict] = None,
     ) -> Optional["MaybeInaccessibleMessage"]:
         """See :meth:`telegram.TelegramObject.de_json`."""
         data = cls._parse_data(data)
@@ -255,8 +261,8 @@ class Message(MaybeInaccessibleMessage):
 
     .. versionchanged:: 20.8
         * This class is now a subclass of :class:`telegram.MaybeInaccessibleMessage`.
-        * The :paramref:`pinned_message` now can be either class:`telegram.Message` or
-          class:`telegram.InaccessibleMessage`.
+        * The :paramref:`pinned_message` now can be either :class:`telegram.Message` or
+          :class:`telegram.InaccessibleMessage`.
 
     .. versionchanged:: 20.0
 
@@ -274,15 +280,14 @@ class Message(MaybeInaccessibleMessage):
 
     Args:
         message_id (:obj:`int`): Unique message identifier inside this chat.
-        from_user (:class:`telegram.User`, optional): Sender of the message; empty for messages
-            sent to channels. For backward compatibility, this will contain a fake sender user in
-            non-channel chats, if the message was sent on behalf of a chat.
-        sender_chat (:class:`telegram.Chat`, optional): Sender of the message, sent on behalf of a
-            chat. For example, the channel itself for channel posts, the supergroup itself for
-            messages from anonymous group administrators, the linked channel for messages
-            automatically forwarded to the discussion group. For backward compatibility,
-            :attr:`from_user` contains a fake sender user in non-channel chats, if the message was
-            sent on behalf of a chat.
+        from_user (:class:`telegram.User`, optional): Sender of the message; may be empty for
+            messages sent to channels. For backward compatibility, if the message was sent on
+            behalf of a chat, the field contains a fake sender user in non-channel chats.
+        sender_chat (:class:`telegram.Chat`, optional): Sender of the message when sent on behalf
+            of a chat. For example, the supergroup itself for messages sent by its anonymous
+            administrators or a linked channel for messages automatically forwarded to the
+            channel's discussion group. For backward compatibility, if the message was sent on
+            behalf of a chat, the field from contains a fake sender user in non-channel chats.
         date (:class:`datetime.datetime`): Date the message was sent in Unix time. Converted to
             :class:`datetime.datetime`.
 
@@ -328,6 +333,11 @@ class Message(MaybeInaccessibleMessage):
 
             .. versionadded:: 20.8
 
+        effect_id (:obj:`str`, optional): Unique identifier of the message effect added to the
+            message.
+
+            .. versionadded:: 21.3
+
         caption_entities (Sequence[:class:`telegram.MessageEntity`], optional): For messages with a
             Caption. Special entities like usernames, URLs, bot commands, etc. that appear in the
             caption. See :attr:`Message.parse_caption_entity` and :attr:`parse_caption_entities`
@@ -337,6 +347,9 @@ class Message(MaybeInaccessibleMessage):
             .. versionchanged:: 20.0
                 |sequenceclassargs|
 
+        show_caption_above_media (:obj:`bool`, optional): |show_cap_above_med|
+
+            .. versionadded:: 21.3
         audio (:class:`telegram.Audio`, optional): Message is an audio file, information
             about the file.
         document (:class:`telegram.Document`, optional): Message is a general file, information
@@ -345,6 +358,7 @@ class Message(MaybeInaccessibleMessage):
             about the animation. For backward compatibility, when this field is set, the document
             field will also be set.
         game (:class:`telegram.Game`, optional): Message is a game, information about the game.
+            :ref:`More about games >> <games-tree>`.
         photo (Sequence[:class:`telegram.PhotoSize`], optional): Message is a photo, available
             sizes of the photo. This list is empty if the message does not contain a photo.
 
@@ -360,7 +374,8 @@ class Message(MaybeInaccessibleMessage):
             video.
         voice (:class:`telegram.Voice`, optional): Message is a voice message, information about
             the file.
-        video_note (:class:`telegram.VideoNote`, optional): Message is a video note, information
+        video_note (:class:`telegram.VideoNote`, optional): Message is a
+            `video note <https://telegram.org/blog/video-messages-and-telescope>`_, information
             about the video message.
         new_chat_members (Sequence[:class:`telegram.User`], optional): New members that were added
             to the group or supergroup and information about them (the bot itself may be one of
@@ -369,7 +384,8 @@ class Message(MaybeInaccessibleMessage):
             .. versionchanged:: 20.0
                 |sequenceclassargs|
 
-        caption (:obj:`str`, optional): Caption for the animation, audio, document, photo, video
+        caption (:obj:`str`, optional): Caption for the animation, audio, document, paid media,
+            photo, video
             or voice, 0-:tg-const:`telegram.constants.MessageLimit.CAPTION_LENGTH` characters.
         contact (:class:`telegram.Contact`, optional): Message is a shared contact, information
             about the contact.
@@ -411,14 +427,17 @@ class Message(MaybeInaccessibleMessage):
             :attr:`reply_to_message` fields even if it is itself a reply.
 
             .. versionchanged:: 20.8
-                This attribute now is either class:`telegram.Message` or
-                class:`telegram.InaccessibleMessage`.
+                This attribute now is either :class:`telegram.Message` or
+                :class:`telegram.InaccessibleMessage`.
         invoice (:class:`telegram.Invoice`, optional): Message is an invoice for a payment,
             information about the invoice.
+            :ref:`More about payments >> <payments-tree>`.
         successful_payment (:class:`telegram.SuccessfulPayment`, optional): Message is a service
             message about a successful payment, information about the payment.
+            :ref:`More about payments >> <payments-tree>`.
         connected_website (:obj:`str`, optional): The domain name of the website on which the user
             has logged in.
+            `More about Telegram Login >> <https://core.telegram.org/widgets/login>`_.
         author_signature (:obj:`str`, optional): Signature of the post author for messages in
             channels, or the custom title of an anonymous group administrator.
         passport_data (:class:`telegram.PassportData`, optional): Telegram Passport data.
@@ -550,28 +569,35 @@ class Message(MaybeInaccessibleMessage):
 
             .. versionadded:: 21.1
 
-        sender_business_bot (:obj:`telegram.User`, optional): The bot that actually sent the
+        sender_business_bot (:class:`telegram.User`, optional): The bot that actually sent the
             message on behalf of the business account. Available only for outgoing messages sent
             on behalf of the connected business account.
 
             .. versionadded:: 21.1
 
-        chat_background_set  (:obj:`telegram.ChatBackground`, optional): Service message: chat
+        chat_background_set  (:class:`telegram.ChatBackground`, optional): Service message: chat
             background set.
 
             .. versionadded:: 21.2
+        paid_media (:class:`telegram.PaidMediaInfo`, optional): Message contains paid media;
+            information about the paid media.
+
+            .. versionadded:: 21.4
+        refunded_payment (:class:`telegram.RefundedPayment`, optional): Message is a service
+            message about a refunded payment, information about the payment.
+
+            .. versionadded:: 21.4
 
     Attributes:
         message_id (:obj:`int`): Unique message identifier inside this chat.
-        from_user (:class:`telegram.User`): Optional. Sender of the message; empty for messages
-            sent to channels. For backward compatibility, this will contain a fake sender user in
-            non-channel chats, if the message was sent on behalf of a chat.
-        sender_chat (:class:`telegram.Chat`): Optional. Sender of the message, sent on behalf of a
-            chat. For example, the channel itself for channel posts, the supergroup itself for
-            messages from anonymous group administrators, the linked channel for messages
-            automatically forwarded to the discussion group. For backward compatibility,
-            :attr:`from_user` contains a fake sender user in non-channel chats, if the message was
-            sent on behalf of a chat.
+        from_user (:class:`telegram.User`): Optional. Sender of the message; may be empty for
+            messages sent to channels. For backward compatibility, if the message was sent on
+            behalf of a chat, the field contains a fake sender user in non-channel chats.
+        sender_chat (:class:`telegram.Chat`): Optional. Sender of the message when sent on behalf
+            of a chat. For example, the supergroup itself for messages sent by its anonymous
+            administrators or a linked channel for messages automatically forwarded to the
+            channel's discussion group. For backward compatibility, if the message was sent on
+            behalf of a chat, the field from contains a fake sender user in non-channel chats.
         date (:class:`datetime.datetime`): Date the message was sent in Unix time. Converted to
             :class:`datetime.datetime`.
 
@@ -617,6 +643,11 @@ class Message(MaybeInaccessibleMessage):
 
             .. versionadded:: 20.8
 
+        effect_id (:obj:`str`): Optional. Unique identifier of the message effect added to the
+            message.
+
+            ..versionadded:: 21.3
+
         caption_entities (Tuple[:class:`telegram.MessageEntity`]): Optional. For messages with a
             Caption. Special entities like usernames, URLs, bot commands, etc. that appear in the
             caption. See :attr:`Message.parse_caption_entity` and :attr:`parse_caption_entities`
@@ -626,6 +657,9 @@ class Message(MaybeInaccessibleMessage):
             .. versionchanged:: 20.0
                 |tupleclassattrs|
 
+        show_caption_above_media (:obj:`bool`): Optional. |show_cap_above_med|
+
+            .. versionadded:: 21.3
         audio (:class:`telegram.Audio`): Optional. Message is an audio file, information
             about the file.
 
@@ -640,6 +674,7 @@ class Message(MaybeInaccessibleMessage):
 
             .. seealso:: :wiki:`Working with Files and Media <Working-with-Files-and-Media>`
         game (:class:`telegram.Game`): Optional. Message is a game, information about the game.
+            :ref:`More about games >> <games-tree>`.
         photo (Tuple[:class:`telegram.PhotoSize`]): Optional. Message is a photo, available
             sizes of the photo. This list is empty if the message does not contain a photo.
 
@@ -663,7 +698,8 @@ class Message(MaybeInaccessibleMessage):
             the file.
 
             .. seealso:: :wiki:`Working with Files and Media <Working-with-Files-and-Media>`
-        video_note (:class:`telegram.VideoNote`): Optional. Message is a video note, information
+        video_note (:class:`telegram.VideoNote`): Optional. Message is a
+            `video note <https://telegram.org/blog/video-messages-and-telescope>`_, information
             about the video message.
 
             .. seealso:: :wiki:`Working with Files and Media <Working-with-Files-and-Media>`
@@ -673,7 +709,8 @@ class Message(MaybeInaccessibleMessage):
 
             .. versionchanged:: 20.0
                 |tupleclassattrs|
-        caption (:obj:`str`): Optional. Caption for the animation, audio, document, photo, video
+        caption (:obj:`str`): Optional. Caption for the animation, audio, document, paid media,
+            photo, video
             or voice, 0-:tg-const:`telegram.constants.MessageLimit.CAPTION_LENGTH` characters.
         contact (:class:`telegram.Contact`): Optional. Message is a shared contact, information
             about the contact.
@@ -715,14 +752,17 @@ class Message(MaybeInaccessibleMessage):
             :attr:`reply_to_message` fields even if it is itself a reply.
 
             .. versionchanged:: 20.8
-                This attribute now is either class:`telegram.Message` or
-                class:`telegram.InaccessibleMessage`.
+                This attribute now is either :class:`telegram.Message` or
+                :class:`telegram.InaccessibleMessage`.
         invoice (:class:`telegram.Invoice`): Optional. Message is an invoice for a payment,
             information about the invoice.
+            :ref:`More about payments >> <payments-tree>`.
         successful_payment (:class:`telegram.SuccessfulPayment`): Optional. Message is a service
             message about a successful payment, information about the payment.
+            :ref:`More about payments >> <payments-tree>`.
         connected_website (:obj:`str`): Optional. The domain name of the website on which the user
             has logged in.
+            `More about Telegram Login >> <https://core.telegram.org/widgets/login>`_.
         author_signature (:obj:`str`): Optional. Signature of the post author for messages in
             channels, or the custom title of an anonymous group administrator.
         passport_data (:class:`telegram.PassportData`): Optional. Telegram Passport data.
@@ -855,16 +895,24 @@ class Message(MaybeInaccessibleMessage):
 
             .. versionadded:: 21.1
 
-        sender_business_bot (:obj:`telegram.User`): Optional. The bot that actually sent the
+        sender_business_bot (:class:`telegram.User`): Optional. The bot that actually sent the
             message on behalf of the business account. Available only for outgoing messages sent
             on behalf of the connected business account.
 
             .. versionadded:: 21.1
 
-        chat_background_set (:obj:`telegram.ChatBackground`): Optional. Service message: chat
+        chat_background_set (:class:`telegram.ChatBackground`): Optional. Service message: chat
             background set
 
             .. versionadded:: 21.2
+        paid_media (:class:`telegram.PaidMediaInfo`): Optional. Message contains paid media;
+            information about the paid media.
+
+            .. versionadded:: 21.4
+        refunded_payment (:class:`telegram.RefundedPayment`): Optional. Message is a service
+            message about a refunded payment, information about the payment.
+
+            .. versionadded:: 21.4
 
     .. |custom_emoji_no_md1_support| replace:: Since custom emoji entities are not supported by
        :attr:`~telegram.constants.ParseMode.MARKDOWN`, this method now raises a
@@ -897,6 +945,7 @@ class Message(MaybeInaccessibleMessage):
         "dice",
         "document",
         "edit_date",
+        "effect_id",
         "entities",
         "external_reply",
         "forum_topic_closed",
@@ -930,18 +979,21 @@ class Message(MaybeInaccessibleMessage):
         "new_chat_members",
         "new_chat_photo",
         "new_chat_title",
+        "paid_media",
         "passport_data",
         "photo",
         "pinned_message",
         "poll",
         "proximity_alert_triggered",
         "quote",
+        "refunded_payment",
         "reply_markup",
         "reply_to_message",
         "reply_to_story",
         "sender_boost_count",
         "sender_business_bot",
         "sender_chat",
+        "show_caption_above_media",
         "sticker",
         "story",
         "successful_payment",
@@ -1044,6 +1096,10 @@ class Message(MaybeInaccessibleMessage):
         sender_business_bot: Optional[User] = None,
         is_from_offline: Optional[bool] = None,
         chat_background_set: Optional[ChatBackground] = None,
+        effect_id: Optional[str] = None,
+        show_caption_above_media: Optional[bool] = None,
+        paid_media: Optional[PaidMediaInfo] = None,
+        refunded_payment: Optional[RefundedPayment] = None,
         *,
         api_kwargs: Optional[JSONDict] = None,
     ):
@@ -1143,6 +1199,10 @@ class Message(MaybeInaccessibleMessage):
             self.sender_business_bot: Optional[User] = sender_business_bot
             self.is_from_offline: Optional[bool] = is_from_offline
             self.chat_background_set: Optional[ChatBackground] = chat_background_set
+            self.effect_id: Optional[str] = effect_id
+            self.show_caption_above_media: Optional[bool] = show_caption_above_media
+            self.paid_media: Optional[PaidMediaInfo] = paid_media
+            self.refunded_payment: Optional[RefundedPayment] = refunded_payment
 
             self._effective_attachment = DEFAULT_NONE
 
@@ -1183,7 +1243,7 @@ class Message(MaybeInaccessibleMessage):
         return None
 
     @classmethod
-    def de_json(cls, data: Optional[JSONDict], bot: "Bot") -> Optional["Message"]:
+    def de_json(cls, data: Optional[JSONDict], bot: Optional["Bot"] = None) -> Optional["Message"]:
         """See :meth:`telegram.TelegramObject.de_json`."""
         data = cls._parse_data(data)
 
@@ -1258,6 +1318,8 @@ class Message(MaybeInaccessibleMessage):
         data["users_shared"] = UsersShared.de_json(data.get("users_shared"), bot)
         data["chat_shared"] = ChatShared.de_json(data.get("chat_shared"), bot)
         data["chat_background_set"] = ChatBackground.de_json(data.get("chat_background_set"), bot)
+        data["paid_media"] = PaidMediaInfo.de_json(data.get("paid_media"), bot)
+        data["refunded_payment"] = RefundedPayment.de_json(data.get("refunded_payment"), bot)
 
         # Unfortunately, this needs to be here due to cyclic imports
         from telegram._giveaway import (  # pylint: disable=import-outside-toplevel
@@ -1321,6 +1383,7 @@ class Message(MaybeInaccessibleMessage):
         Location,
         PassportData,
         Sequence[PhotoSize],
+        PaidMediaInfo,
         Poll,
         Sticker,
         Story,
@@ -1331,8 +1394,8 @@ class Message(MaybeInaccessibleMessage):
         Voice,
         None,
     ]:
-        """If this message is neither a plain text message nor a status update, this gives the
-        attachment that this message was sent with. This may be one of
+        """If the message is a user generated content which is not a plain text message, this
+        property is set to this content. It may be one of
 
         * :class:`telegram.Audio`
         * :class:`telegram.Dice`
@@ -1344,6 +1407,7 @@ class Message(MaybeInaccessibleMessage):
         * :class:`telegram.Location`
         * :class:`telegram.PassportData`
         * List[:class:`telegram.PhotoSize`]
+        * :class:`telegram.PaidMediaInfo`
         * :class:`telegram.Poll`
         * :class:`telegram.Sticker`
         * :class:`telegram.Story`
@@ -1361,6 +1425,12 @@ class Message(MaybeInaccessibleMessage):
             :attr:`dice`, :attr:`passport_data` and :attr:`poll` are now also considered to be an
             attachment.
 
+        .. versionchanged:: 21.4
+            :attr:`paid_media` is now also considered to be an attachment.
+
+        .. deprecated:: 21.4
+            :attr:`successful_payment` will be removed in future major versions.
+
         """
         if not isinstance(self._effective_attachment, DefaultValue):
             return self._effective_attachment
@@ -1368,6 +1438,15 @@ class Message(MaybeInaccessibleMessage):
         for attachment_type in MessageAttachmentType:
             if self[attachment_type]:
                 self._effective_attachment = self[attachment_type]  # type: ignore[assignment]
+                if attachment_type == MessageAttachmentType.SUCCESSFUL_PAYMENT:
+                    warn(
+                        PTBDeprecationWarning(
+                            "21.4",
+                            "successful_payment will no longer be considered an attachment in"
+                            " future major versions",
+                        ),
+                        stacklevel=2,
+                    )
                 break
         else:
             self._effective_attachment = None
@@ -1436,8 +1515,8 @@ class Message(MaybeInaccessibleMessage):
             raise RuntimeError("This message has neither text nor caption.")
 
         # Telegram wants the position in UTF-16 code units, so we have to calculate in that space
-        utf16_text = text.encode("utf-16-le")
-        utf16_quote = quote.encode("utf-16-le")
+        utf16_text = text.encode(TextEncoding.UTF_16_LE)
+        utf16_quote = quote.encode(TextEncoding.UTF_16_LE)
         effective_index = index or 0
 
         matches = list(re.finditer(re.escape(utf16_quote), utf16_text))
@@ -1634,6 +1713,7 @@ class Message(MaybeInaccessibleMessage):
         message_thread_id: ODVInput[int] = DEFAULT_NONE,
         link_preview_options: ODVInput["LinkPreviewOptions"] = DEFAULT_NONE,
         reply_parameters: Optional["ReplyParameters"] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -1698,6 +1778,7 @@ class Message(MaybeInaccessibleMessage):
             pool_timeout=pool_timeout,
             api_kwargs=api_kwargs,
             business_connection_id=self.business_connection_id,
+            message_effect_id=message_effect_id,
         )
 
     async def reply_markdown(
@@ -1710,6 +1791,7 @@ class Message(MaybeInaccessibleMessage):
         message_thread_id: ODVInput[int] = DEFAULT_NONE,
         link_preview_options: ODVInput["LinkPreviewOptions"] = DEFAULT_NONE,
         reply_parameters: Optional["ReplyParameters"] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -1780,6 +1862,7 @@ class Message(MaybeInaccessibleMessage):
             pool_timeout=pool_timeout,
             api_kwargs=api_kwargs,
             business_connection_id=self.business_connection_id,
+            message_effect_id=message_effect_id,
         )
 
     async def reply_markdown_v2(
@@ -1792,6 +1875,7 @@ class Message(MaybeInaccessibleMessage):
         message_thread_id: ODVInput[int] = DEFAULT_NONE,
         link_preview_options: ODVInput["LinkPreviewOptions"] = DEFAULT_NONE,
         reply_parameters: Optional["ReplyParameters"] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -1858,6 +1942,7 @@ class Message(MaybeInaccessibleMessage):
             pool_timeout=pool_timeout,
             api_kwargs=api_kwargs,
             business_connection_id=self.business_connection_id,
+            message_effect_id=message_effect_id,
         )
 
     async def reply_html(
@@ -1870,6 +1955,7 @@ class Message(MaybeInaccessibleMessage):
         message_thread_id: ODVInput[int] = DEFAULT_NONE,
         link_preview_options: ODVInput["LinkPreviewOptions"] = DEFAULT_NONE,
         reply_parameters: Optional["ReplyParameters"] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -1936,6 +2022,7 @@ class Message(MaybeInaccessibleMessage):
             pool_timeout=pool_timeout,
             api_kwargs=api_kwargs,
             business_connection_id=self.business_connection_id,
+            message_effect_id=message_effect_id,
         )
 
     async def reply_media_group(
@@ -1947,6 +2034,7 @@ class Message(MaybeInaccessibleMessage):
         protect_content: ODVInput[bool] = DEFAULT_NONE,
         message_thread_id: ODVInput[int] = DEFAULT_NONE,
         reply_parameters: Optional["ReplyParameters"] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2013,6 +2101,7 @@ class Message(MaybeInaccessibleMessage):
             parse_mode=parse_mode,
             caption_entities=caption_entities,
             business_connection_id=self.business_connection_id,
+            message_effect_id=message_effect_id,
         )
 
     async def reply_photo(
@@ -2027,6 +2116,8 @@ class Message(MaybeInaccessibleMessage):
         message_thread_id: ODVInput[int] = DEFAULT_NONE,
         has_spoiler: Optional[bool] = None,
         reply_parameters: Optional["ReplyParameters"] = None,
+        message_effect_id: Optional[str] = None,
+        show_caption_above_media: Optional[bool] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2092,6 +2183,8 @@ class Message(MaybeInaccessibleMessage):
             api_kwargs=api_kwargs,
             has_spoiler=has_spoiler,
             business_connection_id=self.business_connection_id,
+            message_effect_id=message_effect_id,
+            show_caption_above_media=show_caption_above_media,
         )
 
     async def reply_audio(
@@ -2109,6 +2202,7 @@ class Message(MaybeInaccessibleMessage):
         message_thread_id: ODVInput[int] = DEFAULT_NONE,
         thumbnail: Optional[FileInput] = None,
         reply_parameters: Optional["ReplyParameters"] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2177,6 +2271,7 @@ class Message(MaybeInaccessibleMessage):
             api_kwargs=api_kwargs,
             thumbnail=thumbnail,
             business_connection_id=self.business_connection_id,
+            message_effect_id=message_effect_id,
         )
 
     async def reply_document(
@@ -2192,6 +2287,7 @@ class Message(MaybeInaccessibleMessage):
         message_thread_id: ODVInput[int] = DEFAULT_NONE,
         thumbnail: Optional[FileInput] = None,
         reply_parameters: Optional["ReplyParameters"] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2258,6 +2354,7 @@ class Message(MaybeInaccessibleMessage):
             message_thread_id=message_thread_id,
             thumbnail=thumbnail,
             business_connection_id=self.business_connection_id,
+            message_effect_id=message_effect_id,
         )
 
     async def reply_animation(
@@ -2276,6 +2373,8 @@ class Message(MaybeInaccessibleMessage):
         has_spoiler: Optional[bool] = None,
         thumbnail: Optional[FileInput] = None,
         reply_parameters: Optional["ReplyParameters"] = None,
+        message_effect_id: Optional[str] = None,
+        show_caption_above_media: Optional[bool] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2345,6 +2444,8 @@ class Message(MaybeInaccessibleMessage):
             has_spoiler=has_spoiler,
             thumbnail=thumbnail,
             business_connection_id=self.business_connection_id,
+            message_effect_id=message_effect_id,
+            show_caption_above_media=show_caption_above_media,
         )
 
     async def reply_sticker(
@@ -2356,6 +2457,7 @@ class Message(MaybeInaccessibleMessage):
         message_thread_id: ODVInput[int] = DEFAULT_NONE,
         emoji: Optional[str] = None,
         reply_parameters: Optional["ReplyParameters"] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2416,6 +2518,7 @@ class Message(MaybeInaccessibleMessage):
             message_thread_id=message_thread_id,
             emoji=emoji,
             business_connection_id=self.business_connection_id,
+            message_effect_id=message_effect_id,
         )
 
     async def reply_video(
@@ -2435,6 +2538,8 @@ class Message(MaybeInaccessibleMessage):
         has_spoiler: Optional[bool] = None,
         thumbnail: Optional[FileInput] = None,
         reply_parameters: Optional["ReplyParameters"] = None,
+        message_effect_id: Optional[str] = None,
+        show_caption_above_media: Optional[bool] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2505,6 +2610,8 @@ class Message(MaybeInaccessibleMessage):
             has_spoiler=has_spoiler,
             thumbnail=thumbnail,
             business_connection_id=self.business_connection_id,
+            message_effect_id=message_effect_id,
+            show_caption_above_media=show_caption_above_media,
         )
 
     async def reply_video_note(
@@ -2518,6 +2625,7 @@ class Message(MaybeInaccessibleMessage):
         message_thread_id: ODVInput[int] = DEFAULT_NONE,
         thumbnail: Optional[FileInput] = None,
         reply_parameters: Optional["ReplyParameters"] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2582,6 +2690,7 @@ class Message(MaybeInaccessibleMessage):
             message_thread_id=message_thread_id,
             thumbnail=thumbnail,
             business_connection_id=self.business_connection_id,
+            message_effect_id=message_effect_id,
         )
 
     async def reply_voice(
@@ -2596,6 +2705,7 @@ class Message(MaybeInaccessibleMessage):
         protect_content: ODVInput[bool] = DEFAULT_NONE,
         message_thread_id: ODVInput[int] = DEFAULT_NONE,
         reply_parameters: Optional["ReplyParameters"] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2661,6 +2771,7 @@ class Message(MaybeInaccessibleMessage):
             protect_content=protect_content,
             message_thread_id=message_thread_id,
             business_connection_id=self.business_connection_id,
+            message_effect_id=message_effect_id,
         )
 
     async def reply_location(
@@ -2676,6 +2787,7 @@ class Message(MaybeInaccessibleMessage):
         protect_content: ODVInput[bool] = DEFAULT_NONE,
         message_thread_id: ODVInput[int] = DEFAULT_NONE,
         reply_parameters: Optional["ReplyParameters"] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2742,6 +2854,7 @@ class Message(MaybeInaccessibleMessage):
             protect_content=protect_content,
             message_thread_id=message_thread_id,
             business_connection_id=self.business_connection_id,
+            message_effect_id=message_effect_id,
         )
 
     async def reply_venue(
@@ -2759,6 +2872,7 @@ class Message(MaybeInaccessibleMessage):
         protect_content: ODVInput[bool] = DEFAULT_NONE,
         message_thread_id: ODVInput[int] = DEFAULT_NONE,
         reply_parameters: Optional["ReplyParameters"] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2827,6 +2941,7 @@ class Message(MaybeInaccessibleMessage):
             protect_content=protect_content,
             message_thread_id=message_thread_id,
             business_connection_id=self.business_connection_id,
+            message_effect_id=message_effect_id,
         )
 
     async def reply_contact(
@@ -2840,6 +2955,7 @@ class Message(MaybeInaccessibleMessage):
         protect_content: ODVInput[bool] = DEFAULT_NONE,
         message_thread_id: ODVInput[int] = DEFAULT_NONE,
         reply_parameters: Optional["ReplyParameters"] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2904,6 +3020,7 @@ class Message(MaybeInaccessibleMessage):
             protect_content=protect_content,
             message_thread_id=message_thread_id,
             business_connection_id=self.business_connection_id,
+            message_effect_id=message_effect_id,
         )
 
     async def reply_poll(
@@ -2927,6 +3044,7 @@ class Message(MaybeInaccessibleMessage):
         reply_parameters: Optional["ReplyParameters"] = None,
         question_parse_mode: ODVInput[str] = DEFAULT_NONE,
         question_entities: Optional[Sequence["MessageEntity"]] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -2999,6 +3117,7 @@ class Message(MaybeInaccessibleMessage):
             business_connection_id=self.business_connection_id,
             question_parse_mode=question_parse_mode,
             question_entities=question_entities,
+            message_effect_id=message_effect_id,
         )
 
     async def reply_dice(
@@ -3009,6 +3128,7 @@ class Message(MaybeInaccessibleMessage):
         protect_content: ODVInput[bool] = DEFAULT_NONE,
         message_thread_id: ODVInput[int] = DEFAULT_NONE,
         reply_parameters: Optional["ReplyParameters"] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -3068,6 +3188,7 @@ class Message(MaybeInaccessibleMessage):
             protect_content=protect_content,
             message_thread_id=message_thread_id,
             business_connection_id=self.business_connection_id,
+            message_effect_id=message_effect_id,
         )
 
     async def reply_chat_action(
@@ -3122,6 +3243,7 @@ class Message(MaybeInaccessibleMessage):
         protect_content: ODVInput[bool] = DEFAULT_NONE,
         message_thread_id: ODVInput[int] = DEFAULT_NONE,
         reply_parameters: Optional["ReplyParameters"] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -3183,6 +3305,7 @@ class Message(MaybeInaccessibleMessage):
             protect_content=protect_content,
             message_thread_id=message_thread_id,
             business_connection_id=self.business_connection_id,
+            message_effect_id=message_effect_id,
         )
 
     async def reply_invoice(
@@ -3190,7 +3313,7 @@ class Message(MaybeInaccessibleMessage):
         title: str,
         description: str,
         payload: str,
-        provider_token: str,
+        provider_token: Optional[str],
         currency: str,
         prices: Sequence["LabeledPrice"],
         start_parameter: Optional[str] = None,
@@ -3213,6 +3336,7 @@ class Message(MaybeInaccessibleMessage):
         protect_content: ODVInput[bool] = DEFAULT_NONE,
         message_thread_id: ODVInput[int] = DEFAULT_NONE,
         reply_parameters: Optional["ReplyParameters"] = None,
+        message_effect_id: Optional[str] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -3302,6 +3426,7 @@ class Message(MaybeInaccessibleMessage):
             suggested_tip_amounts=suggested_tip_amounts,
             protect_content=protect_content,
             message_thread_id=message_thread_id,
+            message_effect_id=message_effect_id,
         )
 
     async def forward(
@@ -3331,7 +3456,7 @@ class Message(MaybeInaccessibleMessage):
         Note:
             Since the release of Bot API 5.5 it can be impossible to forward messages from
             some chats. Use the attributes :attr:`telegram.Message.has_protected_content` and
-            :attr:`telegram.Chat.has_protected_content` to check this.
+            :attr:`telegram.ChatFullInfo.has_protected_content` to check this.
 
             As a workaround, it is still possible to use :meth:`copy`. However, this
             behaviour is undocumented and might be changed by Telegram.
@@ -3365,6 +3490,7 @@ class Message(MaybeInaccessibleMessage):
         protect_content: ODVInput[bool] = DEFAULT_NONE,
         message_thread_id: Optional[int] = None,
         reply_parameters: Optional["ReplyParameters"] = None,
+        show_caption_above_media: Optional[bool] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -3409,6 +3535,7 @@ class Message(MaybeInaccessibleMessage):
             api_kwargs=api_kwargs,
             protect_content=protect_content,
             message_thread_id=message_thread_id,
+            show_caption_above_media=show_caption_above_media,
         )
 
     async def reply_copy(
@@ -3423,6 +3550,7 @@ class Message(MaybeInaccessibleMessage):
         protect_content: ODVInput[bool] = DEFAULT_NONE,
         message_thread_id: ODVInput[int] = DEFAULT_NONE,
         reply_parameters: Optional["ReplyParameters"] = None,
+        show_caption_above_media: Optional[bool] = None,
         *,
         reply_to_message_id: Optional[int] = None,
         allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
@@ -3486,6 +3614,7 @@ class Message(MaybeInaccessibleMessage):
             api_kwargs=api_kwargs,
             protect_content=protect_content,
             message_thread_id=message_thread_id,
+            show_caption_above_media=show_caption_above_media,
         )
 
     async def edit_text(
@@ -3506,7 +3635,10 @@ class Message(MaybeInaccessibleMessage):
         """Shortcut for::
 
              await bot.edit_message_text(
-                 chat_id=message.chat_id, message_id=message.message_id, *args, **kwargs
+                 chat_id=message.chat_id,
+                 message_id=message.message_id,
+                 business_connection_id=message.business_connection_id,
+                 *args, **kwargs
              )
 
         For the documentation of the arguments, please see :meth:`telegram.Bot.edit_message_text`.
@@ -3515,6 +3647,9 @@ class Message(MaybeInaccessibleMessage):
             You can only edit messages that the bot sent itself (i.e. of the ``bot.send_*`` family
             of methods) or channel posts, if the bot is an admin in that channel. However, this
             behaviour is undocumented and might be changed by Telegram.
+
+        .. versionchanged:: 21.4
+           Now also passes :attr:`business_connection_id`.
 
         Returns:
             :class:`telegram.Message`: On success, if edited message is sent by the bot, the
@@ -3536,6 +3671,7 @@ class Message(MaybeInaccessibleMessage):
             api_kwargs=api_kwargs,
             entities=entities,
             inline_message_id=None,
+            business_connection_id=self.business_connection_id,
         )
 
     async def edit_caption(
@@ -3544,6 +3680,7 @@ class Message(MaybeInaccessibleMessage):
         reply_markup: Optional["InlineKeyboardMarkup"] = None,
         parse_mode: ODVInput[str] = DEFAULT_NONE,
         caption_entities: Optional[Sequence["MessageEntity"]] = None,
+        show_caption_above_media: Optional[bool] = None,
         *,
         read_timeout: ODVInput[float] = DEFAULT_NONE,
         write_timeout: ODVInput[float] = DEFAULT_NONE,
@@ -3554,7 +3691,10 @@ class Message(MaybeInaccessibleMessage):
         """Shortcut for::
 
              await bot.edit_message_caption(
-                 chat_id=message.chat_id, message_id=message.message_id, *args, **kwargs
+                 chat_id=message.chat_id,
+                 message_id=message.message_id,
+                 business_connection_id=message.business_connection_id,
+                 *args, **kwargs
              )
 
         For the documentation of the arguments, please see
@@ -3564,6 +3704,9 @@ class Message(MaybeInaccessibleMessage):
             You can only edit messages that the bot sent itself (i.e. of the ``bot.send_*`` family
             of methods) or channel posts, if the bot is an admin in that channel. However, this
             behaviour is undocumented and might be changed by Telegram.
+
+        .. versionchanged:: 21.4
+           Now also passes :attr:`business_connection_id`.
 
         Returns:
             :class:`telegram.Message`: On success, if edited message is sent by the bot, the
@@ -3583,6 +3726,8 @@ class Message(MaybeInaccessibleMessage):
             api_kwargs=api_kwargs,
             caption_entities=caption_entities,
             inline_message_id=None,
+            show_caption_above_media=show_caption_above_media,
+            business_connection_id=self.business_connection_id,
         )
 
     async def edit_media(
@@ -3599,7 +3744,10 @@ class Message(MaybeInaccessibleMessage):
         """Shortcut for::
 
              await bot.edit_message_media(
-                 chat_id=message.chat_id, message_id=message.message_id, *args, **kwargs
+                 chat_id=message.chat_id,
+                 message_id=message.message_id,
+                 business_connection_id=message.business_connection_id,
+                 *args, **kwargs
              )
 
         For the documentation of the arguments, please see
@@ -3609,6 +3757,9 @@ class Message(MaybeInaccessibleMessage):
             You can only edit messages that the bot sent itself(i.e. of the ``bot.send_*`` family
             of methods) or channel posts, if the bot is an admin in that channel. However, this
             behaviour is undocumented and might be changed by Telegram.
+
+        .. versionchanged:: 21.4
+           Now also passes :attr:`business_connection_id`.
 
         Returns:
             :class:`telegram.Message`: On success, if edited message is not an inline message, the
@@ -3626,6 +3777,7 @@ class Message(MaybeInaccessibleMessage):
             pool_timeout=pool_timeout,
             api_kwargs=api_kwargs,
             inline_message_id=None,
+            business_connection_id=self.business_connection_id,
         )
 
     async def edit_reply_markup(
@@ -3641,7 +3793,10 @@ class Message(MaybeInaccessibleMessage):
         """Shortcut for::
 
              await bot.edit_message_reply_markup(
-                 chat_id=message.chat_id, message_id=message.message_id, *args, **kwargs
+                 chat_id=message.chat_id,
+                 message_id=message.message_id,
+                 business_connection_id=message.business_connection_id,
+                 *args, **kwargs
              )
 
         For the documentation of the arguments, please see
@@ -3651,6 +3806,9 @@ class Message(MaybeInaccessibleMessage):
             You can only edit messages that the bot sent itself (i.e. of the ``bot.send_*`` family
             of methods) or channel posts, if the bot is an admin in that channel. However, this
             behaviour is undocumented and might be changed by Telegram.
+
+        .. versionchanged:: 21.4
+           Now also passes :attr:`business_connection_id`.
 
         Returns:
             :class:`telegram.Message`: On success, if edited message is sent by the bot, the
@@ -3666,6 +3824,7 @@ class Message(MaybeInaccessibleMessage):
             pool_timeout=pool_timeout,
             api_kwargs=api_kwargs,
             inline_message_id=None,
+            business_connection_id=self.business_connection_id,
         )
 
     async def edit_live_location(
@@ -3688,7 +3847,10 @@ class Message(MaybeInaccessibleMessage):
         """Shortcut for::
 
              await bot.edit_message_live_location(
-                 chat_id=message.chat_id, message_id=message.message_id, *args, **kwargs
+                 chat_id=message.chat_id,
+                 message_id=message.message_id,
+                 business_connection_id=message.business_connection_id,
+                 *args, **kwargs
              )
 
         For the documentation of the arguments, please see
@@ -3698,6 +3860,9 @@ class Message(MaybeInaccessibleMessage):
             You can only edit messages that the bot sent itself (i.e. of the ``bot.send_*`` family
             of methods) or channel posts, if the bot is an admin in that channel. However, this
             behaviour is undocumented and might be changed by Telegram.
+
+        .. versionchanged:: 21.4
+           Now also passes :attr:`business_connection_id`.
 
         Returns:
             :class:`telegram.Message`: On success, if edited message is sent by the bot, the
@@ -3720,6 +3885,7 @@ class Message(MaybeInaccessibleMessage):
             proximity_alert_radius=proximity_alert_radius,
             live_period=live_period,
             inline_message_id=None,
+            business_connection_id=self.business_connection_id,
         )
 
     async def stop_live_location(
@@ -3735,7 +3901,10 @@ class Message(MaybeInaccessibleMessage):
         """Shortcut for::
 
              await bot.stop_message_live_location(
-                 chat_id=message.chat_id, message_id=message.message_id, *args, **kwargs
+                 chat_id=message.chat_id,
+                 message_id=message.message_id,
+                 business_connection_id=message.business_connection_id,
+                 *args, **kwargs
              )
 
         For the documentation of the arguments, please see
@@ -3745,6 +3914,9 @@ class Message(MaybeInaccessibleMessage):
             You can only edit messages that the bot sent itself (i.e. of the ``bot.send_*`` family
             of methods) or channel posts, if the bot is an admin in that channel. However, this
             behaviour is undocumented and might be changed by Telegram.
+
+        .. versionchanged:: 21.4
+           Now also passes :attr:`business_connection_id`.
 
         Returns:
             :class:`telegram.Message`: On success, if edited message is sent by the bot, the
@@ -3760,6 +3932,7 @@ class Message(MaybeInaccessibleMessage):
             pool_timeout=pool_timeout,
             api_kwargs=api_kwargs,
             inline_message_id=None,
+            business_connection_id=self.business_connection_id,
         )
 
     async def set_game_score(
@@ -3890,10 +4063,16 @@ class Message(MaybeInaccessibleMessage):
         """Shortcut for::
 
               await bot.stop_poll(
-                  chat_id=message.chat_id, message_id=message.message_id, *args, **kwargs
+                  chat_id=message.chat_id,
+                  message_id=message.message_id,
+                  business_connection_id=message.business_connection_id,
+                  *args, **kwargs
               )
 
         For the documentation of the arguments, please see :meth:`telegram.Bot.stop_poll`.
+
+        .. versionchanged:: 21.4
+           Now also passes :attr:`business_connection_id`.
 
         Returns:
             :class:`telegram.Poll`: On success, the stopped Poll with the final results is
@@ -3909,6 +4088,7 @@ class Message(MaybeInaccessibleMessage):
             connect_timeout=connect_timeout,
             pool_timeout=pool_timeout,
             api_kwargs=api_kwargs,
+            business_connection_id=self.business_connection_id,
         )
 
     async def pin(
@@ -3924,10 +4104,17 @@ class Message(MaybeInaccessibleMessage):
         """Shortcut for::
 
               await bot.pin_chat_message(
-                  chat_id=message.chat_id, message_id=message.message_id, *args, **kwargs
+                  chat_id=message.chat_id,
+                  message_id=message.message_id,
+                  business_connection_id=message.business_connection_id,
+                  *args, **kwargs
               )
 
         For the documentation of the arguments, please see :meth:`telegram.Bot.pin_chat_message`.
+
+        .. versionchanged:: 21.5
+            Now also passes :attr:`business_connection_id` to
+            :meth:`telegram.Bot.pin_chat_message`.
 
         Returns:
             :obj:`bool`: On success, :obj:`True` is returned.
@@ -3936,6 +4123,7 @@ class Message(MaybeInaccessibleMessage):
         return await self.get_bot().pin_chat_message(
             chat_id=self.chat_id,
             message_id=self.message_id,
+            business_connection_id=self.business_connection_id,
             disable_notification=disable_notification,
             read_timeout=read_timeout,
             write_timeout=write_timeout,
@@ -3956,10 +4144,17 @@ class Message(MaybeInaccessibleMessage):
         """Shortcut for::
 
               await bot.unpin_chat_message(
-                  chat_id=message.chat_id, message_id=message.message_id, *args, **kwargs
+                  chat_id=message.chat_id,
+                  message_id=message.message_id,
+                  business_connection_id=message.business_connection_id,
+                  *args, **kwargs
               )
 
         For the documentation of the arguments, please see :meth:`telegram.Bot.unpin_chat_message`.
+
+        .. versionchanged:: 21.5
+            Now also passes :attr:`business_connection_id` to
+            :meth:`telegram.Bot.pin_chat_message`.
 
         Returns:
             :obj:`bool`: On success, :obj:`True` is returned.
@@ -3968,6 +4163,7 @@ class Message(MaybeInaccessibleMessage):
         return await self.get_bot().unpin_chat_message(
             chat_id=self.chat_id,
             message_id=self.message_id,
+            business_connection_id=self.business_connection_id,
             read_timeout=read_timeout,
             write_timeout=write_timeout,
             connect_timeout=connect_timeout,
@@ -4298,7 +4494,7 @@ class Message(MaybeInaccessibleMessage):
         if message_text is None:
             return None
 
-        utf_16_text = message_text.encode("utf-16-le")
+        utf_16_text = message_text.encode(TextEncoding.UTF_16_LE)
         html_text = ""
         last_offset = 0
 
@@ -4333,6 +4529,8 @@ class Message(MaybeInaccessibleMessage):
                 insert = f'<a href="{escaped_text}">{escaped_text}</a>'
             elif entity.type == MessageEntity.BLOCKQUOTE:
                 insert = f"<blockquote>{escaped_text}</blockquote>"
+            elif entity.type == MessageEntity.EXPANDABLE_BLOCKQUOTE:
+                insert = f"<blockquote expandable>{escaped_text}</blockquote>"
             elif entity.type == MessageEntity.BOLD:
                 insert = f"<b>{escaped_text}</b>"
             elif entity.type == MessageEntity.ITALIC:
@@ -4360,7 +4558,9 @@ class Message(MaybeInaccessibleMessage):
             # text is part of the parent entity
             html_text += (
                 escape(
-                    utf_16_text[last_offset * 2 : (entity.offset - offset) * 2].decode("utf-16-le")
+                    utf_16_text[last_offset * 2 : (entity.offset - offset) * 2].decode(
+                        TextEncoding.UTF_16_LE
+                    )
                 )
                 + insert
             )
@@ -4368,7 +4568,7 @@ class Message(MaybeInaccessibleMessage):
             last_offset = entity.offset - offset + entity.length
 
         # see comment above
-        html_text += escape(utf_16_text[last_offset * 2 :].decode("utf-16-le"))
+        html_text += escape(utf_16_text[last_offset * 2 :].decode(TextEncoding.UTF_16_LE))
 
         return html_text
 
@@ -4483,11 +4683,12 @@ class Message(MaybeInaccessibleMessage):
     ) -> Optional[str]:
         if version == 1:
             for entity_type in (
-                MessageEntity.UNDERLINE,
-                MessageEntity.STRIKETHROUGH,
-                MessageEntity.SPOILER,
+                MessageEntity.EXPANDABLE_BLOCKQUOTE,
                 MessageEntity.BLOCKQUOTE,
                 MessageEntity.CUSTOM_EMOJI,
+                MessageEntity.SPOILER,
+                MessageEntity.STRIKETHROUGH,
+                MessageEntity.UNDERLINE,
             ):
                 if any(entity.type == entity_type for entity in entities):
                     name = entity_type.name.title().replace("_", " ")  # type:ignore[attr-defined]
@@ -4496,7 +4697,7 @@ class Message(MaybeInaccessibleMessage):
         if message_text is None:
             return None
 
-        utf_16_text = message_text.encode("utf-16-le")
+        utf_16_text = message_text.encode(TextEncoding.UTF_16_LE)
         markdown_text = ""
         last_offset = 0
 
@@ -4567,8 +4768,10 @@ class Message(MaybeInaccessibleMessage):
                 insert = f"~{escaped_text}~"
             elif entity.type == MessageEntity.SPOILER:
                 insert = f"||{escaped_text}||"
-            elif entity.type == MessageEntity.BLOCKQUOTE:
+            elif entity.type in (MessageEntity.BLOCKQUOTE, MessageEntity.EXPANDABLE_BLOCKQUOTE):
                 insert = ">" + "\n>".join(escaped_text.splitlines())
+                if entity.type == MessageEntity.EXPANDABLE_BLOCKQUOTE:
+                    insert = f"{insert}||"
             elif entity.type == MessageEntity.CUSTOM_EMOJI:
                 # This should never be needed because ids are numeric but the documentation
                 # specifically mentions it so here we are
@@ -4587,7 +4790,7 @@ class Message(MaybeInaccessibleMessage):
             markdown_text += (
                 escape_markdown(
                     utf_16_text[last_offset * 2 : (entity.offset - offset) * 2].decode(
-                        "utf-16-le"
+                        TextEncoding.UTF_16_LE
                     ),
                     version=version,
                 )
@@ -4598,7 +4801,7 @@ class Message(MaybeInaccessibleMessage):
 
         # see comment above
         markdown_text += escape_markdown(
-            utf_16_text[last_offset * 2 :].decode("utf-16-le"),
+            utf_16_text[last_offset * 2 :].decode(TextEncoding.UTF_16_LE),
             version=version,
         )
 

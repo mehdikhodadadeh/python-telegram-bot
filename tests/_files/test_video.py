@@ -37,7 +37,7 @@ from tests.auxil.files import data_file
 from tests.auxil.slots import mro_slots
 
 
-@pytest.fixture()
+@pytest.fixture
 def video_file():
     with data_file("telegram.mp4").open("rb") as f:
         yield f
@@ -49,7 +49,7 @@ async def video(bot, chat_id):
         return (await bot.send_video(chat_id, video=f, read_timeout=50)).video
 
 
-class TestVideoBase:
+class VideoTestBase:
     width = 360
     height = 640
     duration = 5
@@ -66,7 +66,7 @@ class TestVideoBase:
     video_file_unique_id = "adc3145fd2e84d95b64d68eaa22aa33e"
 
 
-class TestVideoWithoutRequest(TestVideoBase):
+class TestVideoWithoutRequest(VideoTestBase):
     def test_slot_behaviour(self, video):
         for attr in video.__slots__:
             assert getattr(video, attr, "err") != "err", f"got extra slot '{attr}'"
@@ -229,7 +229,7 @@ class TestVideoWithoutRequest(TestVideoBase):
         await default_bot.send_video(chat_id, video, reply_parameters=ReplyParameters(**kwargs))
 
 
-class TestVideoWithRequest(TestVideoBase):
+class TestVideoWithRequest(VideoTestBase):
     async def test_send_all_args(self, bot, chat_id, video_file, video, thumb_file):
         message = await bot.send_video(
             chat_id,
@@ -244,6 +244,7 @@ class TestVideoWithRequest(TestVideoBase):
             parse_mode="Markdown",
             thumbnail=thumb_file,
             has_spoiler=True,
+            show_caption_above_media=True,
         )
 
         assert isinstance(message.video, Video)
@@ -265,6 +266,7 @@ class TestVideoWithRequest(TestVideoBase):
         assert message.video.file_name == self.file_name
         assert message.has_protected_content
         assert message.has_media_spoiler
+        assert message.show_caption_above_media
 
     async def test_get_and_download(self, bot, video, chat_id, tmp_file):
         new_file = await bot.get_file(video.file_id)

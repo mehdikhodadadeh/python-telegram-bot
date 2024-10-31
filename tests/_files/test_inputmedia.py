@@ -31,6 +31,8 @@ from telegram import (
     InputMediaDocument,
     InputMediaPhoto,
     InputMediaVideo,
+    InputPaidMediaPhoto,
+    InputPaidMediaVideo,
     Message,
     MessageEntity,
     ReplyParameters,
@@ -66,72 +68,94 @@ from .test_video import video, video_file  # noqa: F401
 @pytest.fixture(scope="module")
 def input_media_video(class_thumb_file):
     return InputMediaVideo(
-        media=TestInputMediaVideoBase.media,
-        caption=TestInputMediaVideoBase.caption,
-        width=TestInputMediaVideoBase.width,
-        height=TestInputMediaVideoBase.height,
-        duration=TestInputMediaVideoBase.duration,
-        parse_mode=TestInputMediaVideoBase.parse_mode,
-        caption_entities=TestInputMediaVideoBase.caption_entities,
+        media=InputMediaVideoTestBase.media,
+        caption=InputMediaVideoTestBase.caption,
+        width=InputMediaVideoTestBase.width,
+        height=InputMediaVideoTestBase.height,
+        duration=InputMediaVideoTestBase.duration,
+        parse_mode=InputMediaVideoTestBase.parse_mode,
+        caption_entities=InputMediaVideoTestBase.caption_entities,
         thumbnail=class_thumb_file,
-        supports_streaming=TestInputMediaVideoBase.supports_streaming,
-        has_spoiler=TestInputMediaVideoBase.has_spoiler,
+        supports_streaming=InputMediaVideoTestBase.supports_streaming,
+        has_spoiler=InputMediaVideoTestBase.has_spoiler,
+        show_caption_above_media=InputMediaVideoTestBase.show_caption_above_media,
     )
 
 
 @pytest.fixture(scope="module")
 def input_media_photo():
     return InputMediaPhoto(
-        media=TestInputMediaPhotoBase.media,
-        caption=TestInputMediaPhotoBase.caption,
-        parse_mode=TestInputMediaPhotoBase.parse_mode,
-        caption_entities=TestInputMediaPhotoBase.caption_entities,
-        has_spoiler=TestInputMediaPhotoBase.has_spoiler,
+        media=InputMediaPhotoTestBase.media,
+        caption=InputMediaPhotoTestBase.caption,
+        parse_mode=InputMediaPhotoTestBase.parse_mode,
+        caption_entities=InputMediaPhotoTestBase.caption_entities,
+        has_spoiler=InputMediaPhotoTestBase.has_spoiler,
+        show_caption_above_media=InputMediaPhotoTestBase.show_caption_above_media,
     )
 
 
 @pytest.fixture(scope="module")
 def input_media_animation(class_thumb_file):
     return InputMediaAnimation(
-        media=TestInputMediaAnimationBase.media,
-        caption=TestInputMediaAnimationBase.caption,
-        parse_mode=TestInputMediaAnimationBase.parse_mode,
-        caption_entities=TestInputMediaAnimationBase.caption_entities,
-        width=TestInputMediaAnimationBase.width,
-        height=TestInputMediaAnimationBase.height,
+        media=InputMediaAnimationTestBase.media,
+        caption=InputMediaAnimationTestBase.caption,
+        parse_mode=InputMediaAnimationTestBase.parse_mode,
+        caption_entities=InputMediaAnimationTestBase.caption_entities,
+        width=InputMediaAnimationTestBase.width,
+        height=InputMediaAnimationTestBase.height,
         thumbnail=class_thumb_file,
-        duration=TestInputMediaAnimationBase.duration,
-        has_spoiler=TestInputMediaAnimationBase.has_spoiler,
+        duration=InputMediaAnimationTestBase.duration,
+        has_spoiler=InputMediaAnimationTestBase.has_spoiler,
+        show_caption_above_media=InputMediaAnimationTestBase.show_caption_above_media,
     )
 
 
 @pytest.fixture(scope="module")
 def input_media_audio(class_thumb_file):
     return InputMediaAudio(
-        media=TestInputMediaAudioBase.media,
-        caption=TestInputMediaAudioBase.caption,
-        duration=TestInputMediaAudioBase.duration,
-        performer=TestInputMediaAudioBase.performer,
-        title=TestInputMediaAudioBase.title,
+        media=InputMediaAudioTestBase.media,
+        caption=InputMediaAudioTestBase.caption,
+        duration=InputMediaAudioTestBase.duration,
+        performer=InputMediaAudioTestBase.performer,
+        title=InputMediaAudioTestBase.title,
         thumbnail=class_thumb_file,
-        parse_mode=TestInputMediaAudioBase.parse_mode,
-        caption_entities=TestInputMediaAudioBase.caption_entities,
+        parse_mode=InputMediaAudioTestBase.parse_mode,
+        caption_entities=InputMediaAudioTestBase.caption_entities,
     )
 
 
 @pytest.fixture(scope="module")
 def input_media_document(class_thumb_file):
     return InputMediaDocument(
-        media=TestInputMediaDocumentBase.media,
-        caption=TestInputMediaDocumentBase.caption,
+        media=InputMediaDocumentTestBase.media,
+        caption=InputMediaDocumentTestBase.caption,
         thumbnail=class_thumb_file,
-        parse_mode=TestInputMediaDocumentBase.parse_mode,
-        caption_entities=TestInputMediaDocumentBase.caption_entities,
-        disable_content_type_detection=TestInputMediaDocumentBase.disable_content_type_detection,
+        parse_mode=InputMediaDocumentTestBase.parse_mode,
+        caption_entities=InputMediaDocumentTestBase.caption_entities,
+        disable_content_type_detection=InputMediaDocumentTestBase.disable_content_type_detection,
     )
 
 
-class TestInputMediaVideoBase:
+@pytest.fixture(scope="module")
+def input_paid_media_photo():
+    return InputPaidMediaPhoto(
+        media=InputMediaPhotoTestBase.media,
+    )
+
+
+@pytest.fixture(scope="module")
+def input_paid_media_video(class_thumb_file):
+    return InputPaidMediaVideo(
+        media=InputMediaVideoTestBase.media,
+        thumbnail=class_thumb_file,
+        width=InputMediaVideoTestBase.width,
+        height=InputMediaVideoTestBase.height,
+        duration=InputMediaVideoTestBase.duration,
+        supports_streaming=InputMediaVideoTestBase.supports_streaming,
+    )
+
+
+class InputMediaVideoTestBase:
     type_ = "video"
     media = "NOTAREALFILEID"
     caption = "My Caption"
@@ -142,9 +166,10 @@ class TestInputMediaVideoBase:
     supports_streaming = True
     caption_entities = [MessageEntity(MessageEntity.BOLD, 0, 2)]
     has_spoiler = True
+    show_caption_above_media = True
 
 
-class TestInputMediaVideoWithoutRequest(TestInputMediaVideoBase):
+class TestInputMediaVideoWithoutRequest(InputMediaVideoTestBase):
     def test_slot_behaviour(self, input_media_video):
         inst = input_media_video
         for attr in inst.__slots__:
@@ -163,6 +188,7 @@ class TestInputMediaVideoWithoutRequest(TestInputMediaVideoBase):
         assert input_media_video.supports_streaming == self.supports_streaming
         assert isinstance(input_media_video.thumbnail, InputFile)
         assert input_media_video.has_spoiler == self.has_spoiler
+        assert input_media_video.show_caption_above_media == self.show_caption_above_media
 
     def test_caption_entities_always_tuple(self):
         input_media_video = InputMediaVideo(self.media)
@@ -182,6 +208,10 @@ class TestInputMediaVideoWithoutRequest(TestInputMediaVideoBase):
         ]
         assert input_media_video_dict["supports_streaming"] == input_media_video.supports_streaming
         assert input_media_video_dict["has_spoiler"] == input_media_video.has_spoiler
+        assert (
+            input_media_video_dict["show_caption_above_media"]
+            == input_media_video.show_caption_above_media
+        )
 
     def test_with_video(self, video):  # noqa: F811
         # fixture found in test_video
@@ -228,16 +258,17 @@ class TestInputMediaVideoWithoutRequest(TestInputMediaVideoBase):
         )
 
 
-class TestInputMediaPhotoBase:
+class InputMediaPhotoTestBase:
     type_ = "photo"
     media = "NOTAREALFILEID"
     caption = "My Caption"
     parse_mode = "Markdown"
     caption_entities = [MessageEntity(MessageEntity.BOLD, 0, 2)]
     has_spoiler = True
+    show_caption_above_media = True
 
 
-class TestInputMediaPhotoWithoutRequest(TestInputMediaPhotoBase):
+class TestInputMediaPhotoWithoutRequest(InputMediaPhotoTestBase):
     def test_slot_behaviour(self, input_media_photo):
         inst = input_media_photo
         for attr in inst.__slots__:
@@ -251,6 +282,7 @@ class TestInputMediaPhotoWithoutRequest(TestInputMediaPhotoBase):
         assert input_media_photo.parse_mode == self.parse_mode
         assert input_media_photo.caption_entities == tuple(self.caption_entities)
         assert input_media_photo.has_spoiler == self.has_spoiler
+        assert input_media_photo.show_caption_above_media == self.show_caption_above_media
 
     def test_caption_entities_always_tuple(self):
         input_media_photo = InputMediaPhoto(self.media)
@@ -266,6 +298,10 @@ class TestInputMediaPhotoWithoutRequest(TestInputMediaPhotoBase):
             ce.to_dict() for ce in input_media_photo.caption_entities
         ]
         assert input_media_photo_dict["has_spoiler"] == input_media_photo.has_spoiler
+        assert (
+            input_media_photo_dict["show_caption_above_media"]
+            == input_media_photo.show_caption_above_media
+        )
 
     def test_with_photo(self, photo):  # noqa: F811
         # fixture found in test_photo
@@ -286,7 +322,7 @@ class TestInputMediaPhotoWithoutRequest(TestInputMediaPhotoBase):
         assert input_media_photo.media == data_file("telegram.mp4").as_uri()
 
 
-class TestInputMediaAnimationBase:
+class InputMediaAnimationTestBase:
     type_ = "animation"
     media = "NOTAREALFILEID"
     caption = "My Caption"
@@ -296,9 +332,10 @@ class TestInputMediaAnimationBase:
     height = 30
     duration = 1
     has_spoiler = True
+    show_caption_above_media = True
 
 
-class TestInputMediaAnimationWithoutRequest(TestInputMediaAnimationBase):
+class TestInputMediaAnimationWithoutRequest(InputMediaAnimationTestBase):
     def test_slot_behaviour(self, input_media_animation):
         inst = input_media_animation
         for attr in inst.__slots__:
@@ -313,6 +350,7 @@ class TestInputMediaAnimationWithoutRequest(TestInputMediaAnimationBase):
         assert input_media_animation.caption_entities == tuple(self.caption_entities)
         assert isinstance(input_media_animation.thumbnail, InputFile)
         assert input_media_animation.has_spoiler == self.has_spoiler
+        assert input_media_animation.show_caption_above_media == self.show_caption_above_media
 
     def test_caption_entities_always_tuple(self):
         input_media_animation = InputMediaAnimation(self.media)
@@ -331,6 +369,10 @@ class TestInputMediaAnimationWithoutRequest(TestInputMediaAnimationBase):
         assert input_media_animation_dict["height"] == input_media_animation.height
         assert input_media_animation_dict["duration"] == input_media_animation.duration
         assert input_media_animation_dict["has_spoiler"] == input_media_animation.has_spoiler
+        assert (
+            input_media_animation_dict["show_caption_above_media"]
+            == input_media_animation.show_caption_above_media
+        )
 
     def test_with_animation(self, animation):  # noqa: F811
         # fixture found in test_animation
@@ -354,7 +396,7 @@ class TestInputMediaAnimationWithoutRequest(TestInputMediaAnimationBase):
         assert input_media_animation.thumbnail == data_file("telegram.jpg").as_uri()
 
 
-class TestInputMediaAudioBase:
+class InputMediaAudioTestBase:
     type_ = "audio"
     media = "NOTAREALFILEID"
     caption = "My Caption"
@@ -365,7 +407,7 @@ class TestInputMediaAudioBase:
     caption_entities = [MessageEntity(MessageEntity.BOLD, 0, 2)]
 
 
-class TestInputMediaAudioWithoutRequest(TestInputMediaAudioBase):
+class TestInputMediaAudioWithoutRequest(InputMediaAudioTestBase):
     def test_slot_behaviour(self, input_media_audio):
         inst = input_media_audio
         for attr in inst.__slots__:
@@ -425,7 +467,7 @@ class TestInputMediaAudioWithoutRequest(TestInputMediaAudioBase):
         assert input_media_audio.thumbnail == data_file("telegram.jpg").as_uri()
 
 
-class TestInputMediaDocumentBase:
+class InputMediaDocumentTestBase:
     type_ = "document"
     media = "NOTAREALFILEID"
     caption = "My Caption"
@@ -434,7 +476,7 @@ class TestInputMediaDocumentBase:
     disable_content_type_detection = True
 
 
-class TestInputMediaDocumentWithoutRequest(TestInputMediaDocumentBase):
+class TestInputMediaDocumentWithoutRequest(InputMediaDocumentTestBase):
     def test_slot_behaviour(self, input_media_document):
         inst = input_media_document
         for attr in inst.__slots__:
@@ -491,6 +533,91 @@ class TestInputMediaDocumentWithoutRequest(TestInputMediaDocumentBase):
         )
         assert input_media_document.media == data_file("telegram.mp4").as_uri()
         assert input_media_document.thumbnail == data_file("telegram.jpg").as_uri()
+
+
+class TestInputPaidMediaPhotoWithoutRequest(InputMediaPhotoTestBase):
+    def test_slot_behaviour(self, input_paid_media_photo):
+        inst = input_paid_media_photo
+        for attr in inst.__slots__:
+            assert getattr(inst, attr, "err") != "err", f"got extra slot '{attr}'"
+        assert len(mro_slots(inst)) == len(set(mro_slots(inst))), "duplicate slot"
+
+    def test_expected_values(self, input_paid_media_photo):
+        assert input_paid_media_photo.type == self.type_
+        assert input_paid_media_photo.media == self.media
+
+    def test_to_dict(self, input_paid_media_photo):
+        input_paid_media_photo_dict = input_paid_media_photo.to_dict()
+        assert input_paid_media_photo_dict["type"] == input_paid_media_photo.type
+        assert input_paid_media_photo_dict["media"] == input_paid_media_photo.media
+
+    def test_with_photo(self, photo):  # noqa: F811
+        # fixture found in test_photo
+        input_paid_media_photo = InputPaidMediaPhoto(photo)
+        assert input_paid_media_photo.type == self.type_
+        assert input_paid_media_photo.media == photo.file_id
+
+    def test_with_photo_file(self, photo_file):  # noqa: F811
+        # fixture found in test_photo
+        input_paid_media_photo = InputPaidMediaPhoto(photo_file)
+        assert input_paid_media_photo.type == self.type_
+        assert isinstance(input_paid_media_photo.media, InputFile)
+
+    def test_with_local_files(self):
+        input_paid_media_photo = InputPaidMediaPhoto(data_file("telegram.jpg"))
+        assert input_paid_media_photo.media == data_file("telegram.jpg").as_uri()
+
+
+class TestInputPaidMediaVideoWithoutRequest(InputMediaVideoTestBase):
+    def test_slot_behaviour(self, input_paid_media_video):
+        inst = input_paid_media_video
+        for attr in inst.__slots__:
+            assert getattr(inst, attr, "err") != "err", f"got extra slot '{attr}'"
+        assert len(mro_slots(inst)) == len(set(mro_slots(inst))), "duplicate slot"
+
+    def test_expected_values(self, input_paid_media_video):
+        assert input_paid_media_video.type == self.type_
+        assert input_paid_media_video.media == self.media
+        assert input_paid_media_video.width == self.width
+        assert input_paid_media_video.height == self.height
+        assert input_paid_media_video.duration == self.duration
+        assert input_paid_media_video.supports_streaming == self.supports_streaming
+        assert isinstance(input_paid_media_video.thumbnail, InputFile)
+
+    def test_to_dict(self, input_paid_media_video):
+        input_paid_media_video_dict = input_paid_media_video.to_dict()
+        assert input_paid_media_video_dict["type"] == input_paid_media_video.type
+        assert input_paid_media_video_dict["media"] == input_paid_media_video.media
+        assert input_paid_media_video_dict["width"] == input_paid_media_video.width
+        assert input_paid_media_video_dict["height"] == input_paid_media_video.height
+        assert input_paid_media_video_dict["duration"] == input_paid_media_video.duration
+        assert (
+            input_paid_media_video_dict["supports_streaming"]
+            == input_paid_media_video.supports_streaming
+        )
+        assert input_paid_media_video_dict["thumbnail"] == input_paid_media_video.thumbnail
+
+    def test_with_video(self, video):  # noqa: F811
+        # fixture found in test_video
+        input_paid_media_video = InputPaidMediaVideo(video)
+        assert input_paid_media_video.type == self.type_
+        assert input_paid_media_video.media == video.file_id
+        assert input_paid_media_video.width == video.width
+        assert input_paid_media_video.height == video.height
+        assert input_paid_media_video.duration == video.duration
+
+    def test_with_video_file(self, video_file):  # noqa: F811
+        # fixture found in test_video
+        input_paid_media_video = InputPaidMediaVideo(video_file)
+        assert input_paid_media_video.type == self.type_
+        assert isinstance(input_paid_media_video.media, InputFile)
+
+    def test_with_local_files(self):
+        input_paid_media_video = InputPaidMediaVideo(
+            data_file("telegram.mp4"), thumbnail=data_file("telegram.jpg")
+        )
+        assert input_paid_media_video.media == data_file("telegram.mp4").as_uri()
+        assert input_paid_media_video.thumbnail == data_file("telegram.jpg").as_uri()
 
 
 @pytest.fixture(scope="module")
@@ -1023,3 +1150,20 @@ class TestSendMediaGroupWithRequest:
         assert message.caption_entities == ()
         # make sure that the media was not modified
         assert media.parse_mode == copied_media.parse_mode
+
+    async def test_send_paid_media(self, bot, channel_id, photo_file, video_file):  # noqa: F811
+        msg = await bot.send_paid_media(
+            chat_id=channel_id,
+            star_count=20,
+            media=[
+                InputPaidMediaPhoto(media=photo_file),
+                InputPaidMediaVideo(media=video_file),
+            ],
+            caption="bye onlyfans",
+            show_caption_above_media=True,
+        )
+
+        assert isinstance(msg, Message)
+        assert msg.caption == "bye onlyfans"
+        assert msg.show_caption_above_media
+        assert msg.paid_media.star_count == 20

@@ -78,7 +78,9 @@ class BackgroundFill(TelegramObject):
         self._freeze()
 
     @classmethod
-    def de_json(cls, data: Optional[JSONDict], bot: "Bot") -> Optional["BackgroundFill"]:
+    def de_json(
+        cls, data: Optional[JSONDict], bot: Optional["Bot"] = None
+    ) -> Optional["BackgroundFill"]:
         """See :meth:`telegram.TelegramObject.de_json`."""
         data = cls._parse_data(data)
 
@@ -267,7 +269,9 @@ class BackgroundType(TelegramObject):
         self._freeze()
 
     @classmethod
-    def de_json(cls, data: Optional[JSONDict], bot: "Bot") -> Optional["BackgroundType"]:
+    def de_json(
+        cls, data: Optional[JSONDict], bot: Optional["Bot"] = None
+    ) -> Optional["BackgroundType"]:
         """See :meth:`telegram.TelegramObject.de_json`."""
         data = cls._parse_data(data)
 
@@ -303,7 +307,7 @@ class BackgroundTypeFill(BackgroundType):
     .. versionadded:: 21.2
 
     Args:
-        fill (:obj:`telegram.BackgroundFill`): The background fill.
+        fill (:class:`telegram.BackgroundFill`): The background fill.
         dark_theme_dimming (:obj:`int`): Dimming of the background in dark themes, as a
             percentage;
             0-:tg-const:`telegram.constants.BackgroundTypeLimit.MAX_DIMMING`.
@@ -311,7 +315,7 @@ class BackgroundTypeFill(BackgroundType):
     Attributes:
         type (:obj:`str`): Type of the background. Always
             :attr:`~telegram.BackgroundType.FILL`.
-        fill (:obj:`telegram.BackgroundFill`): The background fill.
+        fill (:class:`telegram.BackgroundFill`): The background fill.
         dark_theme_dimming (:obj:`int`): Dimming of the background in dark themes, as a
             percentage;
             0-:tg-const:`telegram.constants.BackgroundTypeLimit.MAX_DIMMING`.
@@ -345,7 +349,7 @@ class BackgroundTypeWallpaper(BackgroundType):
     .. versionadded:: 21.2
 
     Args:
-        document (:obj:`telegram.Document`): Document with the wallpaper
+        document (:class:`telegram.Document`): Document with the wallpaper
         dark_theme_dimming (:obj:`int`): Dimming of the background in dark themes, as a
             percentage;
             0-:tg-const:`telegram.constants.BackgroundTypeLimit.MAX_DIMMING`.
@@ -357,7 +361,7 @@ class BackgroundTypeWallpaper(BackgroundType):
     Attributes:
         type (:obj:`str`): Type of the background. Always
             :attr:`~telegram.BackgroundType.WALLPAPER`.
-        document (:obj:`telegram.Document`): Document with the wallpaper
+        document (:class:`telegram.Document`): Document with the wallpaper
         dark_theme_dimming (:obj:`int`): Dimming of the background in dark themes, as a
             percentage;
             0-:tg-const:`telegram.constants.BackgroundTypeLimit.MAX_DIMMING`.
@@ -403,8 +407,8 @@ class BackgroundTypePattern(BackgroundType):
     .. versionadded:: 21.2
 
     Args:
-        document (:obj:`telegram.Document`): Document with the pattern.
-        fill (:obj:`telegram.BackgroundFill`): The background fill that is combined with
+        document (:class:`telegram.Document`): Document with the pattern.
+        fill (:class:`telegram.BackgroundFill`): The background fill that is combined with
             the pattern.
         intensity (:obj:`int`): Intensity of the pattern when it is shown above the filled
             background;
@@ -418,8 +422,8 @@ class BackgroundTypePattern(BackgroundType):
     Attributes:
         type (:obj:`str`): Type of the background. Always
             :attr:`~telegram.BackgroundType.PATTERN`.
-        document (:obj:`telegram.Document`): Document with the pattern.
-        fill (:obj:`telegram.BackgroundFill`): The background fill that is combined with
+        document (:class:`telegram.Document`): Document with the pattern.
+        fill (:class:`telegram.BackgroundFill`): The background fill that is combined with
             the pattern.
         intensity (:obj:`int`): Intensity of the pattern when it is shown above the filled
             background;
@@ -507,10 +511,10 @@ class ChatBackground(TelegramObject):
     .. versionadded:: 21.2
 
     Args:
-        type (:obj:`telegram.BackgroundType`): Type of the background.
+        type (:class:`telegram.BackgroundType`): Type of the background.
 
     Attributes:
-        type (:obj:`telegram.BackgroundType`): Type of the background.
+        type (:class:`telegram.BackgroundType`): Type of the background.
     """
 
     __slots__ = ("type",)
@@ -528,7 +532,9 @@ class ChatBackground(TelegramObject):
         self._freeze()
 
     @classmethod
-    def de_json(cls, data: Optional[JSONDict], bot: "Bot") -> Optional["ChatBackground"]:
+    def de_json(
+        cls, data: Optional[JSONDict], bot: Optional["Bot"] = None
+    ) -> Optional["ChatBackground"]:
         """See :meth:`telegram.TelegramObject.de_json`."""
         data = cls._parse_data(data)
 
